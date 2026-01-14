@@ -1,0 +1,8 @@
+flask
+flask-cors
+fastapi
+uvicorn[standard]
+numpy
+numba
+scipy
+matplotlib
