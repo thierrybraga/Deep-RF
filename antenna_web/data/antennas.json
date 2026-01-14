@@ -1,0 +1,55 @@
+[
+  {
+    "id": "55dd1cdc-6a10-4c27-a0dc-a64a7afc9991",
+    "name": "Dipolo Wi-Fi Padrão",
+    "brand": "Genérico",
+    "technology": "Wi-Fi 2.4GHz",
+    "config": {
+      "type": "dipole",
+      "frequency": 2450000000.0,
+      "length": 0.062,
+      "radius": 0.001
+    }
+  },
+  {
+    "id": "3396dd64-6a71-4cd4-9b8c-ba9f8309434a",
+    "name": "Patch 5G n78",
+    "brand": "Genérico",
+    "technology": "5G",
+    "config": {
+      "type": "patch",
+      "frequency": 3500000000.0,
+      "substrate_er": 2.2,
+      "substrate_h": 0.001575
+    }
+  },
+  {
+    "id": "31ffb9a6-8081-45b8-a01b-11b3aa3104c5",
+    "name": "Teste v_dipole",
+    "brand": "Teste",
+    "technology": "Teste",
+    "config": {
+      "type": "v_dipole",
+      "frequency": 300000000.0,
+      "length": 0.5,
+      "radius": 0.001,
+      "num_directors": 3,
+      "substrate_er": 4.4,
+      "substrate_h": 0.0016,
+      "turns": 5,
+      "aperture_width": null,
+      "aperture_height": null,
+      "flare_length": null,
+      "dish_diameter": null,
+      "focal_length": null,
+      "tau": 0.86,
+      "sigma": 0.15,
+      "loop_radius": null,
+      "side_length": null,
+      "reflector_distance": null,
+      "disc_radius": null,
+      "cone_radius": null,
+      "cone_height": null
+    }
+  }
+]

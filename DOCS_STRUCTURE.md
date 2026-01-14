@@ -1,0 +1,55 @@
+## Estrutura Geral do Projeto
+
+- `antenna_simulator/`: núcleo de simulação FDTD, geometria de antenas e ferramentas de visualização em Python.
+  - `core/`: constantes eletromagnéticas, materiais e grade FDTD.
+    - `constants.py`: constantes físicas básicas (c0, μ0, ε0, Z0 etc.).
+    - `em_constants.py`: funções auxiliares para comprimento de onda, passo de célula e passo de tempo (CFL).
+    - `grid_config.py`: classe `GridConfig` com parâmetros da malha (nx, ny, nz, dx, dt, PML, Courant).
+    - `fdtd_grid.py`: classe `FDTDGrid`, encapsula campos E/H, aplicação de antena, PML e coeficientes numéricos.
+    - `materials.py`: modelos de materiais (PEC, dielétrico, dispersivo, anisotrópico, PML) e biblioteca de materiais.
+    - `geometry/`: representação topológica e geométrica das antenas.
+      - `primitives.py`: vetores 3D, bounding boxes e primitivas geométricas (fios, retângulos, cilindros, hélice, corneta, prato parabólico).
+      - `topology.py`: grafo de antena (`AntennaNode`, `AntennaEdge`, `AntennaGraph`) com nós, arestas e ponto de alimentação.
+      - `factory.py`: `AntennaFactory` com funções de criação de geometrias padrão (dipolo, monopolo, Yagi, patch, hélice, corneta, prato, LPDA, loop, dipolo em V).
+  - `solver/`: núcleo numérico FDTD e pós‑processamento de campos distantes.
+    - `fdtd.py`: classe `FDTDSolver`, loop de tempo, integração com fontes, probes e grade.
+    - `kernels.py`: funções otimizadas de atualização de campos (`update_e_kernel`, `update_h_kernel`), com suporte a Numba.
+    - `sources.py`: classes de fonte (`GaussianSource`, `SineSource`, `ModulatedGaussianSource`, `RickerSource`) e enum `SourceType`.
+    - `monitors.py`: monitores de campo (`FieldProbe`, `NearFieldBox`) para gravação de séries temporais e caixas de campo.
+    - `farfield.py`: conversão campo próximo → campo distante (`NearToFarField`), cálculo de diretividade, ganho, dB/dBi.
+  - `visualization/`: visualizações em Matplotlib e geração de gráficos.
+    - `plots.py`: classes para visualização de geometria, campos, padrões de radiação, animações e gráficos de S‑parâmetros/impedância.
+    - `smith_chart.py`: utilitários de Carta de Smith (conversões de impedância, S11, VSWR) e funções de plot.
+  - `utils/`:
+    - `helpers.py`: funções de apoio (conversões dB/linear, VSWR, retorno, coeficiente de reflexão, área efetiva, path loss, FFT, exportação CSV/NEC2/Touchstone/VTK).
+  - `gui/`:
+    - `main_window.py`: interface desktop (PyQt) com painéis de geometria, campo, radiação e controle de simulação.
+  - `docs/ARCHITECTURE.md`: documentação original de arquitetura do núcleo simulador.
+  - `main.py`: ponto de entrada CLI com exemplos de uso (dipolo, Yagi, patch, hélice, Carta de Smith).
+
+- `antenna_web/`: aplicação web (FastAPI + frontend Three.js) para modelagem de antenas e visualização de campos.
+  - `app.py`: servidor FastAPI, endpoints REST, templates Jinja2 e montagem de arquivos estáticos.
+  - `config.py`: dataclasses `AntennaConfig` e `SimulationConfig`, compartilhadas entre backend e frontend.
+  - `antennas.py`: ponte entre `AntennaConfig` e `AntennaFactory`, gera antenas e dados de geometria para o frontend.
+  - `analysis.py`: cálculos de padrão de radiação, Carta de Smith e parâmetros derivados (ganho, diretividade, largura de feixe, etc.).
+  - `simulation.py`: orquestra simulação FDTD (criação de grade, solver, fontes, probes), grava frames de campo (`Ez`) e tempo.
+  - `optimizer.py`: classe `AntennaOptimizer` e `OptimizationResult` para otimização de comprimento de antena.
+  - `optimization.py`: função `run_optimization_task`, integra o otimizador com o sistema de estado assíncrono.
+  - `resources.py`: dicionários com tipos de antena disponíveis, materiais e metadados usados pela UI.
+  - `state.py`: armazenamento em memória de simulações e otimizações (`simulations`, `optimizations` + locks).
+  - `test_antenna_geometry.py`: testes de sanidade das geometrias (dipolo, Yagi, hélice, monopolo, patch, corneta, prato, LPDA, loop).
+  - `static/`:
+    - `css/style.css`: tema visual (modo escuro), layout dos painéis, viewport 3D e animação de campo.
+    - `js/app.js`: lógica principal do frontend (estado da antena, chamadas de API, controle de simulação, UI).
+    - `js/renderer.js`: motor 3D em Three.js (render da antena, campo 3D, padrão de radiação 3D, câmera e interação).
+    - `js/charts.js`: gráficos (Carta de Smith, S11, VSWR, padrões de radiação 2D) via biblioteca de charts.
+    - `js/analise.js`: lógica da página `analise.html` (painel de análise dedicada).
+    - `js/service-worker.js`: suporte PWA (cache básico de assets).
+    - `manifest.webmanifest`: metadados PWA.
+  - `templates/`:
+    - `index.html`: interface principal (modelagem, simulação, análise, viewport 3D).
+    - `analise.html`: tela focada em análise de resultados.
+  - `README.md`: documentação específica da aplicação web (execução via `uvicorn`, endpoints principais).
+
+- `requirements.txt`: dependências Python globais (FastAPI, Numba, NumPy, Matplotlib, etc.).
+

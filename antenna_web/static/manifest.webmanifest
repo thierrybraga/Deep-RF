@@ -1,0 +1,10 @@
+{
+  "name": "IloveAntenas",
+  "short_name": "IloveAntenas",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#050510",
+  "background_color": "#050510"
+}

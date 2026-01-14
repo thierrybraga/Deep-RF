@@ -6,3 +6,6 @@ numpy
 numba
 scipy
 matplotlib
+networkx
+scikit-rf
+scikit-fem
