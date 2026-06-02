@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iloveantennas"
+version = "0.1.0"
+description = "Simulador de Antenas FDTD e Interface Web"
+authors = [
+    {name = "iLoveAntennas Team", email = "team@iloveantennas.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "numpy>=1.24.0",
+    "numba>=0.57.0",
+    "scipy>=1.10.0",
+    "matplotlib>=3.7.0",
+    "networkx>=3.0",
+    "scikit-rf>=0.24.0",
+    "scikit-fem>=7.0.0",
+    "meshio>=5.0.0",
+    "pydantic>=2.0.0",
+    "gmsh>=4.11.0",
+    "jinja2>=3.1.2"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "flake8>=6.0.0",
+    "black>=23.7.0",
+    "isort>=5.12.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["iloveantennas*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3

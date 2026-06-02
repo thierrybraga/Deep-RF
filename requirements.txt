@@ -9,3 +9,4 @@ matplotlib
 networkx
 scikit-rf
 scikit-fem
+meshio
