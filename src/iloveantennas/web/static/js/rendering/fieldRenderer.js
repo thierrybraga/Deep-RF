@@ -16,10 +16,16 @@ class FieldRenderer {
         this.intensityScale = 1.0;
         this.dbRange = 40;
         
+        this.theme = window.ENGINE_THEME || {};
+        this.animationConfig = this.theme.animation || {};
         this.colormap = this.generateColormap();
     }
     
     generateColormap() {
+        if (this.theme.generateColormap) {
+            return this.theme.generateColormap(256);
+        }
+
         const colors = [];
         for (let i = 0; i < 256; i++) {
             const t = i / 255;
@@ -170,7 +176,8 @@ class FieldRenderer {
         if (!this.isPlaying) return;
         this.renderFrame(this.currentFrame);
         this.currentFrame = (this.currentFrame + 1) % this.frames.length;
-        this.animationId = setTimeout(() => this.animate(), 50 / this.playbackSpeed);
+        const frameDuration = this.animationConfig.frameDurationMs || 50;
+        this.animationId = setTimeout(() => this.animate(), frameDuration / this.playbackSpeed);
     }
     
     seekTo(pct) {

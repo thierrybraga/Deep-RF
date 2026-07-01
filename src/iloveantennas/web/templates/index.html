@@ -23,13 +23,13 @@
     <meta property="twitter:description" content="Simulação avançada de antenas em tempo real. Visualização 3D de campos e padrões de radiação.">
     <meta property="twitter:image" content="https://iloveantenas.com/static/og-image.jpg">
 
-    <meta name="theme-color" content="#050510">
+    <meta name="theme-color" content="#0f1218">
     <meta name="application-name" content="IloveAntenas">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="IloveAntenas">
     <link rel="manifest" href="/static/manifest.webmanifest">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- JSON-LD Structured Data -->
@@ -64,7 +64,7 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=4">
+    <link rel="stylesheet" href="/static/css/style.css?v=9">
 </head>
 <body>
     <!-- Header -->
@@ -112,52 +112,52 @@
                     <i class="fas fa-satellite-dish"></i>
                     Tipo de Antena
                 </h3>
-                <button class="btn btn-secondary btn-full" id="btn-open-library" style="width: 100%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; border-radius: 6px;">
+                <button class="btn btn-secondary btn-full btn-compact" id="btn-open-library">
                     <i class="fas fa-list"></i> Gerenciar Antenas
                 </button>
                 <div class="antenna-types">
                     <button class="antenna-type-btn active" data-type="dipole">
-                        <span class="icon">📡</span>
+                        <span class="icon"><i class="fas fa-satellite-dish"></i></span>
                         <span class="label">Dipolo</span>
                     </button>
                     <button class="antenna-type-btn" data-type="v_dipole">
-                        <span class="icon">✅</span>
+                        <span class="icon"><i class="fas fa-check"></i></span>
                         <span class="label">Dipolo em V</span>
                     </button>
                     <button class="antenna-type-btn" data-type="folded_dipole">
-                        <span class="icon">🧷</span>
+                        <span class="icon"><i class="fas fa-link"></i></span>
                         <span class="label">Dipolo Dobrado</span>
                     </button>
                     <button class="antenna-type-btn" data-type="monopole">
-                        <span class="icon">📶</span>
+                        <span class="icon"><i class="fas fa-signal"></i></span>
                         <span class="label">Monopolo</span>
                     </button>
                     <button class="antenna-type-btn" data-type="yagi">
-                        <span class="icon">📺</span>
+                        <span class="icon"><i class="fas fa-tv"></i></span>
                         <span class="label">Yagi</span>
                     </button>
                     <button class="antenna-type-btn" data-type="patch">
-                        <span class="icon">📱</span>
+                        <span class="icon"><i class="fas fa-mobile-screen"></i></span>
                         <span class="label">Patch</span>
                     </button>
                     <button class="antenna-type-btn" data-type="helix">
-                        <span class="icon">🌀</span>
+                        <span class="icon"><i class="fas fa-wave-square"></i></span>
                         <span class="label">Hélice</span>
                     </button>
                     <button class="antenna-type-btn" data-type="horn">
-                        <span class="icon">📢</span>
+                        <span class="icon"><i class="fas fa-bullhorn"></i></span>
                         <span class="label">Corneta</span>
                     </button>
                     <button class="antenna-type-btn" data-type="dish">
-                        <span class="icon">📡</span>
+                        <span class="icon"><i class="fas fa-satellite-dish"></i></span>
                         <span class="label">Parabólica</span>
                     </button>
                     <button class="antenna-type-btn" data-type="lpda">
-                        <span class="icon">📶</span>
+                        <span class="icon"><i class="fas fa-layer-group"></i></span>
                         <span class="label">Log-Per.</span>
                     </button>
                     <button class="antenna-type-btn" data-type="loop">
-                        <span class="icon">⭕</span>
+                        <span class="icon"><i class="far fa-circle"></i></span>
                         <span class="label">Loop</span>
                     </button>
                 </div>
@@ -190,18 +190,18 @@
                         <label for="auto-length">Auto (λ/2)</label>
                     </div>
                     
-                    <div class="optimization-controls" style="margin-top: 10px;">
-                        <button class="btn btn-outline btn-block" id="btn-optimize" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div class="optimization-controls">
+                        <button class="btn btn-outline btn-block" id="btn-optimize">
                             <i class="fas fa-magic"></i>
                             <span>Otimizar Comprimento</span>
                         </button>
-                        <div id="optimization-status" class="hidden" style="margin-top: 8px; font-size: 0.85em; background: var(--bg-secondary); padding: 8px; border-radius: 4px;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <div id="optimization-status" class="status-card hidden">
+                            <div class="split-row">
                                 <span id="opt-message">Otimizando...</span>
                                 <span id="opt-progress">0%</span>
                             </div>
-                            <div class="progress-bar" style="height: 4px;">
-                                <div class="progress-fill" id="opt-progress-fill" style="width: 0%"></div>
+                            <div class="progress-bar progress-bar-sm">
+                                <div class="progress-fill" id="opt-progress-fill"></div>
                             </div>
                         </div>
                     </div>
@@ -240,7 +240,7 @@
                 <!-- Horn Params -->
                 <div class="form-group hidden" id="group-horn">
                     <label>Abertura (Largura x Altura)</label>
-                    <div class="input-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div class="input-row">
                         <div class="input-with-unit">
                             <input type="number" id="input-horn-width" value="" placeholder="Auto" step="0.01">
                             <span class="unit">m</span>
@@ -260,7 +260,7 @@
                 <!-- Dish Params -->
                 <div class="form-group hidden" id="group-dish">
                     <label>Diâmetro / Dist. Focal</label>
-                    <div class="input-row" style="display: flex; gap: 10px;">
+                    <div class="input-row">
                         <div class="input-with-unit">
                             <input type="number" id="input-dish-diameter" value="" placeholder="Diam." step="0.1">
                             <span class="unit">m</span>
@@ -275,7 +275,7 @@
                 <!-- LPDA Params -->
                 <div class="form-group hidden" id="group-lpda">
                     <label>Tau / Sigma</label>
-                    <div class="input-row" style="display: flex; gap: 10px;">
+                    <div class="input-row">
                         <div class="input-with-unit">
                             <input type="number" id="input-lpda-tau" value="0.86" step="0.01" min="0.1" max="0.99">
                             <span class="unit">τ</span>
@@ -299,7 +299,7 @@
                 <!-- Biquad Params -->
                 <div class="form-group hidden" id="group-biquad">
                     <label>Lado / Refletor</label>
-                    <div class="input-row" style="display: flex; gap: 10px;">
+                    <div class="input-row">
                         <div class="input-with-unit">
                             <input type="number" id="input-biquad-side" value="" placeholder="Lado" step="0.001">
                             <span class="unit">m</span>
@@ -314,7 +314,7 @@
                 <!-- Discone Params -->
                 <div class="form-group hidden" id="group-discone">
                     <label>Disco / Cone</label>
-                    <div class="input-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div class="input-row">
                         <div class="input-with-unit">
                             <input type="number" id="input-discone-disc" value="" placeholder="R.Disco" step="0.001">
                             <span class="unit">m</span>
@@ -378,7 +378,7 @@
                     <span>Iniciar Simulação</span>
                 </button>
 
-                <button class="btn btn-outline btn-block" id="btn-compare-methods" style="margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <button class="btn btn-outline btn-block" id="btn-compare-methods">
                     <i class="fas fa-balance-scale"></i>
                     <span>Comparar FDTD vs FEM</span>
                 </button>
@@ -540,7 +540,7 @@
                     <div class="result-card">
                         <div class="result-label">Impedância de Entrada</div>
                         <div class="result-value" id="result-z">73.1 + j0.2 Ω</div>
-                        <button class="btn-xs" id="btn-open-matching" title="Calcular Casamento" style="margin-top: 5px; width: 100%;">
+                        <button class="btn-xs btn-block" id="btn-open-matching" title="Calcular Casamento">
                             <i class="fas fa-calculator"></i> Casamento
                         </button>
                     </div>
@@ -676,7 +676,7 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+            <div class="modal-footer end">
                 <button class="btn btn-primary" id="btn-save-settings">Salvar</button>
             </div>
         </div>
@@ -728,7 +728,7 @@
                         </div>
                     </div>
 
-                    <div id="match-notes" class="match-notes hidden" style="margin-bottom: 10px; padding: 8px; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; font-size: 0.9em; border-radius: 4px;"></div>
+                    <div id="match-notes" class="match-notes hidden"></div>
 
                         <div class="matching-topology">
                         <h4>Topologia Sugerida</h4>
@@ -765,7 +765,7 @@
 
     <!-- Comparison Modal -->
     <div class="modal-overlay hidden" id="comparison-overlay">
-        <div class="modal modal-comparison" style="max-width: 900px; width: 90%;">
+        <div class="modal modal-comparison">
             <div class="modal-header">
                 <h3>Comparação FDTD vs FEM</h3>
                 <button class="btn-icon" id="btn-close-comparison">
@@ -773,20 +773,20 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="comparison-status" id="comp-status-container" style="margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div class="comparison-status" id="comp-status-container">
+                    <div class="split-row">
                         <span>Simulando...</span>
                         <span id="comp-progress-text">0%</span>
                     </div>
                     <div class="progress-bar">
-                        <div class="progress-fill" id="comp-progress-fill" style="width: 0%"></div>
+                        <div class="progress-fill" id="comp-progress-fill"></div>
                     </div>
                 </div>
 
-                <div class="comparison-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="comparison-grid">
                     <div class="comp-method">
                         <h4>FDTD (Time Domain)</h4>
-                        <div class="viewport" style="height: 300px;">
+                        <div class="viewport comparison-viewport">
                             <canvas id="canvas-comp-fdtd"></canvas>
                         </div>
                         <div class="method-stats">
@@ -796,7 +796,7 @@
                     </div>
                     <div class="comp-method">
                         <h4>FEM (Frequency Domain)</h4>
-                        <div class="viewport" style="height: 300px;">
+                        <div class="viewport comparison-viewport">
                             <canvas id="canvas-comp-fem"></canvas>
                         </div>
                         <div class="method-stats">
@@ -806,7 +806,7 @@
                     </div>
                 </div>
 
-                <div class="comparison-metrics" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; background: var(--bg-secondary); padding: 15px; border-radius: 8px;">
+                <div class="comparison-metrics">
                     <div class="result-card">
                         <div class="result-label">Erro Relativo Médio</div>
                         <div class="result-value" id="comp-error-mean">--</div>
@@ -870,25 +870,26 @@
     <div class="toast-container" id="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="/static/js/renderer.core.js?v=5"></script>
-    <script src="/static/js/renderer.antenna.js?v=5"></script>
-    <script src="/static/js/renderer.field.js?v=5"></script>
-    <script src="/static/js/renderer.radiation.js?v=5"></script>
-    <script src="/static/js/renderer.camera.js?v=5"></script>
-    <script src="/static/js/renderer.settings.js?v=5"></script>
-    <script src="/static/js/rendering/fieldRenderer.js?v=5"></script>
-    <script src="/static/js/charts.core.js?v=5"></script>
-    <script src="/static/js/charts.smith.js?v=5"></script>
-    <script src="/static/js/charts.radiation.js?v=5"></script>
-    <script src="/static/js/charts.sparams.js?v=5"></script>
-    <script src="/static/js/charts.modal.js?v=5"></script>
+    <script src="/static/js/engine.theme.js?v=9"></script>
+    <script src="/static/js/renderer.core.js?v=9"></script>
+    <script src="/static/js/renderer.antenna.js?v=9"></script>
+    <script src="/static/js/renderer.field.js?v=9"></script>
+    <script src="/static/js/renderer.radiation.js?v=9"></script>
+    <script src="/static/js/renderer.camera.js?v=9"></script>
+    <script src="/static/js/renderer.settings.js?v=9"></script>
+    <script src="/static/js/rendering/fieldRenderer.js?v=9"></script>
+    <script src="/static/js/charts.core.js?v=9"></script>
+    <script src="/static/js/charts.smith.js?v=9"></script>
+    <script src="/static/js/charts.radiation.js?v=9"></script>
+    <script src="/static/js/charts.sparams.js?v=9"></script>
+    <script src="/static/js/charts.modal.js?v=9"></script>
     
     <!-- Core App Modules -->
-    <script src="/static/js/app.core.js?v=5"></script>
-    <script src="/static/js/app.events.js?v=5"></script>
-    <script src="/static/js/app.sim.core.js?v=5"></script>
-    <script src="/static/js/app.simulation.js?v=5"></script>
-    <script src="/static/js/app.ui.js?v=5"></script>
+    <script src="/static/js/app.core.js?v=9"></script>
+    <script src="/static/js/app.events.js?v=9"></script>
+    <script src="/static/js/app.sim.core.js?v=9"></script>
+    <script src="/static/js/app.simulation.js?v=9"></script>
+    <script src="/static/js/app.ui.js?v=9"></script>
     
     <script>
         // Initialize Application
@@ -896,31 +897,31 @@
     </script>
     <!-- Antenna Library Modal -->
     <div class="modal-overlay hidden" id="library-overlay">
-        <div class="modal" style="width: 800px; max-width: 95vw;">
+        <div class="modal modal-library">
             <div class="modal-header">
                 <h3>Biblioteca de Antenas</h3>
                 <button class="btn-icon" id="btn-close-library">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <div class="library-controls" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input type="text" id="library-search" placeholder="Buscar antena..." class="input-text" style="flex: 1; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
-                    <button class="btn btn-primary" id="btn-new-antenna" style="padding: 8px 16px;">
+            <div class="modal-body modal-body-scroll">
+                <div class="library-controls">
+                    <input type="text" id="library-search" placeholder="Buscar antena..." class="input-text">
+                    <button class="btn btn-primary btn-compact" id="btn-new-antenna">
                         <i class="fas fa-plus"></i> Nova Antena
                     </button>
                 </div>
                 <div class="table-container">
-                    <table class="data-table" id="antenna-table" style="width: 100%; border-collapse: collapse;">
+                    <table class="data-table" id="antenna-table">
                         <thead>
-                            <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                                <th style="padding: 10px;">Nome</th>
-                                <th style="padding: 10px;">Marca</th>
-                                <th style="padding: 10px;">Tecnologia</th>
-                                <th style="padding: 10px;">Tipo</th>
-                                <th style="padding: 10px;">Freq. (MHz)</th>
-                                <th style="padding: 10px;">Ganho</th>
-                                <th style="padding: 10px;">Ações</th>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Marca</th>
+                                <th>Tecnologia</th>
+                                <th>Tipo</th>
+                                <th>Freq. (MHz)</th>
+                                <th>Ganho</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -934,63 +935,63 @@
 
     <!-- Antenna Editor Modal -->
     <div class="modal-overlay hidden" id="editor-overlay">
-        <div class="modal" style="width: 500px; max-width: 95vw;">
+        <div class="modal modal-editor">
             <div class="modal-header">
                 <h3 id="editor-title">Editar Antena</h3>
                 <button class="btn-icon" id="btn-close-editor">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+            <div class="modal-body modal-body-scroll">
                 <form id="antenna-form">
                     <input type="hidden" id="edit-antenna-id">
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div class="form-grid form-grid-2">
                         <div class="form-group">
-                            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Nome</label>
-                            <input type="text" id="edit-name" required class="input-text" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                            <label>Nome</label>
+                            <input type="text" id="edit-name" required class="input-text">
                         </div>
                         <div class="form-group">
-                            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Marca</label>
-                            <input type="text" id="edit-brand" class="input-text" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                            <label>Marca</label>
+                            <input type="text" id="edit-brand" class="input-text">
                         </div>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-grid form-grid-2">
                         <div class="form-group">
-                            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Tecnologia</label>
-                            <input type="text" id="edit-technology" class="input-text" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                            <label>Tecnologia</label>
+                            <input type="text" id="edit-technology" class="input-text">
                         </div>
                         <div class="form-group">
-                            <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Ganho (dBi)</label>
-                            <input type="number" id="edit-gain" step="0.1" class="input-text" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                            <label>Ganho (dBi)</label>
+                            <input type="number" id="edit-gain" step="0.1" class="input-text">
                         </div>
                     </div>
 
-                    <div style="border-bottom: 1px solid var(--border-color); margin: 15px 0; padding-bottom: 5px; color: var(--accent-color); font-weight: 600;">Configuração Física</div>
+                    <div class="section-divider">Configuração Física</div>
 
-                    <div class="form-group" style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Tipo Base</label>
-                        <select id="edit-type" class="input-select" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                    <div class="form-group">
+                        <label>Tipo Base</label>
+                        <select id="edit-type" class="input-select">
                             <!-- Populated from ANTENNA_TYPES -->
                         </select>
                     </div>
 
-                    <div class="form-group" style="margin-bottom: 10px;">
-                        <label style="display: block; margin-bottom: 5px; color: var(--text-secondary);">Frequência (MHz)</label>
-                        <input type="number" id="edit-frequency" required class="input-text" step="1" style="width: 100%; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px;">
+                    <div class="form-group">
+                        <label>Frequência (MHz)</label>
+                        <input type="number" id="edit-frequency" required class="input-text" step="1">
                     </div>
 
                     <!-- Dynamic Parameters Container -->
-                    <div id="edit-parameters" class="dynamic-parameters" style="display: flex; flex-direction: column; gap: 10px;">
+                    <div id="edit-parameters" class="dynamic-parameters stack-sm">
                         <!-- Filled by JS -->
                     </div>
 
                 </form>
             </div>
-            <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px;">
-                <button class="btn btn-secondary" id="btn-cancel-edit" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancelar</button>
-                <button class="btn btn-primary" id="btn-save-antenna" style="background: var(--accent-color); border: none; color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Salvar</button>
+            <div class="modal-footer end">
+                <button class="btn btn-secondary btn-compact" id="btn-cancel-edit">Cancelar</button>
+                <button class="btn btn-primary btn-compact" id="btn-save-antenna">Salvar</button>
             </div>
         </div>
     </div>

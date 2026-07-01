@@ -20,6 +20,11 @@ ChartManager.prototype.drawSmithGrid = function() {
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
+
+    if (w < 80 || h < 80) {
+        this.smithDims = null;
+        return;
+    }
     
     canvas.width = w * dpr;
     canvas.height = h * dpr;
@@ -32,7 +37,7 @@ ChartManager.prototype.drawSmithGrid = function() {
     ctx.fillStyle = this.colors.background;
     ctx.fillRect(0, 0, w, h);
     
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.25)';
+    ctx.strokeStyle = this.colors.grid;
     ctx.lineWidth = 0.6;
     
     [0, 0.2, 0.5, 1, 2, 5].forEach(r => {
@@ -57,7 +62,7 @@ ChartManager.prototype.drawSmithGrid = function() {
         ctx.stroke();
     });
     
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+    ctx.strokeStyle = this.colors.text;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -92,6 +97,7 @@ ChartManager.prototype.updateSmithChart = function(data) {
     this.drawSmithGrid();
     
     const ctx = this.smithCtx;
+    if (!this.smithDims) return;
     const { cx, cy, radius } = this.smithDims;
     
     if (!Array.isArray(data.gamma_real) || !Array.isArray(data.gamma_imag)) {
@@ -175,7 +181,7 @@ ChartManager.prototype.updateSmithChart = function(data) {
             if (idx >= 0) {
                 const x = cx + data.gamma_real[idx] * radius;
                 const y = cy - data.gamma_imag[idx] * radius;
-                stylePoint(x, y, '#e5e7eb', 4, point.label);
+                stylePoint(x, y, this.colors.text, 4, point.label);
             }
         });
     }
@@ -184,13 +190,13 @@ ChartManager.prototype.updateSmithChart = function(data) {
     ctx.setLineDash([4, 4]);
     vswrs.forEach((s, idx) => {
         const rGamma = ((s - 1) / (s + 1)) * radius;
-        ctx.strokeStyle = idx === 1 ? this.colors.success : 'rgba(148, 163, 184, 0.5)';
+        ctx.strokeStyle = idx === 1 ? this.colors.success : this.colors.grid;
         ctx.lineWidth = idx === 1 ? 1.3 : 0.9;
         ctx.beginPath();
         ctx.arc(cx, cy, rGamma, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = '#e5e7eb';
+        ctx.fillStyle = this.colors.text;
         ctx.font = '9px Inter';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
@@ -217,7 +223,7 @@ ChartManager.prototype.createExpandedSmith = function(canvas, data) {
     ctx.fillStyle = this.colors.background;
     ctx.fillRect(0, 0, w, h);
     
-    ctx.strokeStyle = 'rgba(100, 116, 139, 0.3)';
+    ctx.strokeStyle = this.colors.grid;
     ctx.lineWidth = 1;
     
     [0, 0.2, 0.5, 1, 2, 5].forEach(r => {
@@ -227,12 +233,12 @@ ChartManager.prototype.createExpandedSmith = function(canvas, data) {
         ctx.arc(ccx, cy, cr, 0, Math.PI * 2);
         ctx.stroke();
         
-        ctx.fillStyle = '#64748b';
+        ctx.fillStyle = this.colors.text;
         ctx.font = '11px Inter';
         ctx.fillText(r.toString(), ccx + cr + 4, cy + 4);
     });
     
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+    ctx.strokeStyle = this.colors.text;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
@@ -295,7 +301,7 @@ ChartManager.prototype.createExpandedSmith = function(canvas, data) {
     ctx.setLineDash([4, 4]);
     vswrs.forEach((s, idx) => {
         const rGamma = ((s - 1) / (s + 1)) * radius;
-        ctx.strokeStyle = idx === 1 ? this.colors.success : 'rgba(148, 163, 184, 0.5)';
+        ctx.strokeStyle = idx === 1 ? this.colors.success : this.colors.grid;
         ctx.lineWidth = idx === 1 ? 1.2 : 0.8;
         ctx.beginPath();
         ctx.arc(cx, cy, rGamma, 0, Math.PI * 2);
@@ -303,7 +309,7 @@ ChartManager.prototype.createExpandedSmith = function(canvas, data) {
     });
     ctx.setLineDash([]);
     
-    ctx.fillStyle = '#e5e7eb';
+    ctx.fillStyle = this.colors.text;
     ctx.font = '11px Inter';
     let ty = 24;
     if (data.z0) {

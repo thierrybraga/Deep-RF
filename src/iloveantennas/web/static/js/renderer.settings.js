@@ -19,13 +19,15 @@ AntennaRenderer.prototype.setTheme = function(isDark) {
     if (!this.scene || !this.gridHelper) return;
 
     if (isDark) {
-        this.scene.background = new THREE.Color(0x0a0a1a);
-        this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.12);
-        this.gridHelper.material.color.setHex(0x00ffff);
+        const background = themeColor('scene.darkBackground', '#0a0a1a');
+        this.scene.background = new THREE.Color(background);
+        this.scene.fog = new THREE.FogExp2(themeColor('scene.darkFog', background), 0.12);
+        this.gridHelper.material.color.setHex(threeColor(themeColor('scene.grid', '#2dd4bf'), 0x00ffff));
     } else {
-        this.scene.background = new THREE.Color(0xf5f5fa);
-        this.scene.fog = new THREE.FogExp2(0xf5f5fa, 0.08);
-        this.gridHelper.material.color.setHex(0x3366ff);
+        const background = themeColor('scene.lightBackground', '#f5f5fa');
+        this.scene.background = new THREE.Color(background);
+        this.scene.fog = new THREE.FogExp2(themeColor('scene.lightFog', background), 0.08);
+        this.gridHelper.material.color.setHex(threeColor(themeColor('scene.lightGrid', '#38bdf8'), 0x3366ff));
     }
 };
 

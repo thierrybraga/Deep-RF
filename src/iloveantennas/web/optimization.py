@@ -18,12 +18,15 @@ def run_optimization_task(opt_id: str, params: dict):
             optimizations[opt_id]["optimizer"] = optimizer
 
     try:
+        target_freq = params.get("target_freq", params.get("frequency", 300e6))
+        start_length = params.get("start_length", params.get("length"))
         result = optimizer.optimize_length(
-            antenna_type=params.get("type", "dipole"),
-            target_freq=float(params.get("frequency", 300e6)),
-            start_length=float(params["length"]) if params.get("length") else None,
+            antenna_type=params.get("antenna_type", params.get("type", "dipole")),
+            target_freq=float(target_freq),
+            start_length=float(start_length) if start_length else None,
             radius=float(params.get("radius", 0.001)),
             target_vswr=float(params.get("target_vswr", 1.5)),
+            max_iter=int(params.get("max_iter", 5)),
             callback=callback,
         )
 

@@ -103,8 +103,8 @@ IloveAntenas.prototype.runSimulation = async function() {
                         const elImp = document.getElementById('info-impedance');
                         if (elImp) {
                             elImp.textContent = impStr;
-                            elImp.style.color = '#4cd964';
-                            setTimeout(() => elImp.style.color = '', 2000);
+                            elImp.classList.add('value-flash-success');
+                            setTimeout(() => elImp.classList.remove('value-flash-success'), 2000);
                         }
                     }
 

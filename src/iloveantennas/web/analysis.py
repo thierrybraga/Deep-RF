@@ -232,12 +232,12 @@ def calculate_radiation_pattern(antenna_config: AntennaConfig, mode: str = "anal
             grid = create_grid_for_antenna(
                 antenna,
                 freq_max=freq,
-                cells_per_wavelength=15,
+                cells_per_lambda=15,
                 pml_layers=6,
             )
             solver = FDTDSolver(grid, use_numba=True)
             solver.setup_near_field_box(margin=5)
-            center = (grid.nx // 2, grid.ny // 2, grid.nz // 2)
+            center = (grid.config.nx // 2, grid.config.ny // 2, grid.config.nz // 2)
             source = GaussianSource(
                 position=center,
                 component="Ez",
@@ -359,11 +359,11 @@ def calculate_smith_chart_data(antenna_config: AntennaConfig, mode: str = "analy
             grid = create_grid_for_antenna(
                 antenna,
                 freq_max=freq,
-                cells_per_wavelength=15,
+                cells_per_lambda=15,
                 pml_layers=6,
             )
             solver = FDTDSolver(grid, use_numba=True)
-            center = (grid.nx // 2, grid.ny // 2, grid.nz // 2)
+            center = (grid.config.nx // 2, grid.config.ny // 2, grid.config.nz // 2)
             source = GaussianSource(
                 position=center,
                 component="Ez",

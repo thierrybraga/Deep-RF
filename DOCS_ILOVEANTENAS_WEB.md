@@ -1,11 +1,11 @@
-## antenna_web — Aplicação Web de Simulação e Visualização
+## iloveantennas.web — Aplicação Web de Simulação e Visualização
 
 ### Visão Geral
 
-`antenna_web` é a interface web do sistema IloveAntenas, construída com FastAPI no backend e Three.js + JS no frontend. Ela permite:
+`src/iloveantennas/web` é a interface web do sistema IloveAntenas, construída com FastAPI no backend e Three.js + JS no frontend. Ela permite:
 - Escolher e parametrizar diversos tipos de antenas.
 - Visualizar a geometria 3D da antena.
-- Rodar simulações FDTD (via `antenna_simulator`) e animar o campo eletromagnético.
+- Rodar simulações FDTD (via `iloveantennas.simulator`) e animar o campo eletromagnético.
 - Analisar Carta de Smith, S11, VSWR, padrão de radiação e parâmetros derivados.
 - Otimizar automaticamente o comprimento da antena para casamento em uma frequência alvo.
 
@@ -22,11 +22,14 @@
 - Modelos Pydantic:
   - `AntennaCreateRequest`: parâmetros para criação de antena (tipo, frequência, comprimento, raio, etc.).
   - `SimulationStartRequest`: parâmetros de simulação FDTD (cells_per_wavelength, num_steps, PML, Courant, fonte, amplitude, uso de motor otimizado).
+  - `solver_backend`: seleciona `"auto"`, `"cuda"`, `"numba"` ou `"numpy"` para o FDTD.
   - `SmithChartRequest`, `RadiationPatternRequest`, `CalculateParametersRequest`, `OptimizeRequest`.
+  - `PropagationRequest`, `RayTraceRequest`: perda de percurso, orcamento de enlace e tracado de raios 2D.
 - Endpoints principais:
   - `GET /`: renderiza `index.html`.
   - `GET /analise`: renderiza `analise.html`.
   - `GET /api/materials`: retorna materiais disponíveis.
+  - `GET /api/engine/status`: diagnostica GPU Windows, WSL e backends efetivamente usados.
   - `GET /api/antenna/types`: lista tipos de antena suportados pela UI.
   - `POST /api/antenna/create`:
     - Constrói `AntennaConfig`.
@@ -45,6 +48,8 @@
   - `POST /api/smith-chart`: devolve dados de Carta de Smith.
   - `POST /api/radiation-pattern`: devolve padrão de radiação.
   - `POST /api/calculate`: calcula parâmetros (ganho, largura de feixe, etc.).
+  - `POST /api/propagation/path-loss`: calcula FSPL, Okumura-Hata, COST-231 Hata e orcamento de enlace.
+  - `POST /api/propagation/ray-trace`: retorna caminhos geometricos 2D diretos/refletidos.
   - `POST /api/optimize`: inicia tarefa de otimização de comprimento.
   - `GET /api/optimize/{opt_id}/status`: consulta estado da otimização.
 
@@ -75,7 +80,7 @@
 
 - `estimate_beamwidth(pattern, angles)`: estima largura de feixe a partir do padrão.
 - `calculate_radiation_pattern(antenna_config)`:
-  - Usa o núcleo `antenna_simulator` para obter padrão 3D.
+  - Usa o núcleo `iloveantennas.simulator` para obter padrão 3D.
   - Processa para formatos 2D (cortes) e 3D (grid θ×φ).
 - `calculate_smith_chart_data(antenna_config)`:
   - Calcula impedância, S11, VSWR e outros parâmetros em faixa de frequência.
@@ -88,8 +93,7 @@
 - `run_fdtd_simulation(sim_id, antenna_config, sim_config)`:
   - Marca simulação como `running` em `state.simulations`.
   - Cria antena via `create_antenna`.
-  - Calcula λ e tamanho de célula `dx`.
-  - Dimensiona o domínio FDTD com base no bounding box da antena + margens em múltiplos de λ.
+  - Usa `simulator.engine.GridPolicy`/`GridPlan` para calcular λ, `dx`, dominio FDTD, margens e clamps de performance.
   - Cria `GridConfig` e `FDTDGrid`, aplica antena e PML.
   - Instancia `FDTDSolver` com ou sem Numba.
   - Configura fonte (`GaussianSource` ou `SineSource`) no centro da grade.
@@ -97,13 +101,25 @@
   - Loop de tempo:
     - Atualiza campos.
     - Atualiza progresso (0–100%).
-    - Em intervalos regulares, grava cortes de `Ez` no plano XZ no meio da grade.
+    - Em intervalos definidos por `frame_record_interval`, grava cortes de `Ez` no plano XZ no meio da grade.
   - Para animação:
     - Armazena cortes brutos e seus máximos.
     - Após a simulação, normaliza todos os frames por um único máximo global.
     - Retorna `frames` (lista de dicionários com `step`, `time_ns`, `field`, `max_value`) e `field_shape=[nx, nz]`.
   - Calcula espectro via FFT da série temporal da probe (frequências, magnitudes).
   - Atualiza `state.simulations[sim_id]` para `completed` com todos os resultados.
+  - Inclui metadados `engine` no resultado para indicar metodo, backend real e observacoes de GPU/CPU.
+
+#### simulator.runtime e simulator.propagation
+
+- `simulator.runtime.gpu`:
+  - Detecta `nvidia-smi`, distros WSL, acesso CUDA via WSL e bibliotecas Numba/CUDA opcionais.
+  - Deixa claro se o solver FDTD esta em `cuda`, `numba-cpu` ou `numpy-cpu`, e registra fallback quando CUDA e solicitado sem runtime disponivel.
+- `simulator.propagation.models`:
+  - FSPL, Okumura-Hata, COST-231 Hata e orcamento de enlace.
+  - Retorna avisos quando parametros saem da faixa calibrada do modelo.
+- `simulator.propagation.ray_tracing`:
+  - Tracado geometrico 2D com caminho direto e reflexoes de primeira ordem.
 
 #### optimizer.py e optimization.py
 
@@ -163,6 +179,14 @@
     - `runSimulation()`: dispara `/api/simulation/start`, faz polling de progresso, obtém frames e configura `FieldRenderer` e `AntennaRenderer.setupFieldVisualization`.
     - `optimizeLength()`: dispara `/api/optimize`, acompanha progresso e atualiza comprimento na UI.
 
+#### static/js/engine.theme.js
+
+- Fonte unica para visualizacao de campo:
+  - Stops do gradiente frio/informacao/medio/quente/pico.
+  - Duracao de frame, niveis de contorno, pulso e thresholds de alpha.
+  - `generateColormap()` para canvas 2D.
+  - `shaderVec3()` para injetar os mesmos stops no fragment shader WebGL.
+
 #### static/js/renderer.js
 
 - Configuração global `RENDER_CONFIG`:
@@ -210,10 +234,11 @@
 
 #### static/css/style.css
 
-- Tema escuro moderno:
-  - Layout com painel lateral, viewport 3D, área de resultados e painel de animação.
-  - Estilização de botões, sliders, cartões de resultado, modais (ajuda, configurações, matching).
-  - Cores consistentes com visualização 3D (fundos escuros, acentos em ciano/laranja).
+- Design system central:
+  - Tokens semânticos de cor, tipografia, espaçamento, raio, foco e estados.
+  - Componentes reutilizáveis para painéis, botões, formulários, gráficos, tabelas, toasts e modais.
+  - Tema claro/escuro via `:root[data-theme="light"]`, mantendo uma paleta única para todas as telas.
+  - Templates e HTML gerado por JS devem permanecer sem `style=""`.
 
 #### templates/index.html
 

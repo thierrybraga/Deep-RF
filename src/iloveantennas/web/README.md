@@ -1,151 +1,80 @@
-# IloveAntenas Web - Simulador de Antenas FDTD
+# IloveAntenas Web
 
-Aplicação web completa para simulação e análise de antenas usando o método FDTD (Finite-Difference Time-Domain).
+Aplicacao web FastAPI para modelagem, simulacao e analise de antenas. O frontend usa HTML, CSS centralizado, JavaScript modular, Three.js e Chart.js.
 
-## 🚀 Características
+## Execucao
 
-### Renderização 3D (Three.js)
-- Visualização 3D interativa de antenas
-- Materiais PBR (Physically Based Rendering) para metais
-- Iluminação realista com sombras
-- Controles de câmera (rotação, zoom, pan)
-- Grade e eixos de referência
+Na raiz do projeto:
 
-### Tipos de Antena Suportados
-- **Dipolo** - Antena básica λ/2
-- **Monopolo** - Sobre plano de terra (λ/4)
-- **Yagi-Uda** - Array direcional com múltiplos elementos
-- **Patch Microstrip** - Antena planar para aplicações compactas
-- **Helicoidal** - Polarização circular
-
-### Análise de Impedância
-- **Carta de Smith** - Visualização de impedância complexa
-- **S11 (Return Loss)** - Coeficiente de reflexão em dB
-- **VSWR** - Razão de onda estacionária
-- **Largura de Banda** - Cálculo automático (-10 dB)
-
-### Simulação FDTD
-- Simulação eletromagnética completa
-- Animação do campo elétrico
-- Configuração de resolução e passos temporais
-- Fontes Gaussiana e Senoidal
-
-### Interface
-- Design moderno e responsivo
-- Tema claro/escuro
-- Painéis redimensionáveis
-- Gráficos interativos (Chart.js)
-
-## 📦 Instalação
-
-### Requisitos
-- Python 3.8+
-- pip
-
-### Passos
-
-1. **Extraia os dois arquivos ZIP:**
-   ```bash
-   unzip antenna_simulator.zip
-   unzip antenna_web.zip
-   ```
-
-2. **Instale as dependências:**
-   ```bash
-   pip install flask flask-cors numpy matplotlib
-   ```
-
-3. **Execute a aplicação:**
-   ```bash
-   cd antenna_web
-   python app.py
-   ```
-
-4. **Acesse no navegador:**
-   ```
-   http://localhost:5000
-   ```
-
-## 🎮 Como Usar
-
-### Design de Antena
-1. Selecione o tipo de antena no painel esquerdo
-2. Ajuste a frequência (MHz)
-3. Configure parâmetros específicos (comprimento, raio, etc.)
-4. A antena é renderizada automaticamente em 3D
-
-### Análise
-- **Carta de Smith**: Mostra impedância vs frequência
-- **Diagrama de Radiação**: Padrão polar E e H
-- **S11**: Return loss em dB
-- **VSWR**: Razão de onda estacionária
-
-### Simulação FDTD
-1. Configure a resolução (células/λ)
-2. Defina o número de passos temporais
-3. Selecione o tipo de fonte
-4. Clique em "Iniciar Simulação"
-5. Observe a animação do campo eletromagnético
-
-### Controles 3D
-- **Rotacionar**: Clique + arrastar
-- **Zoom**: Scroll do mouse
-- **Pan**: Clique direito + arrastar
-- **Reset**: Botão de sincronização
-
-## 📁 Estrutura do Projeto
-
+```bash
+python -m uvicorn iloveantennas.web.app:app --host 127.0.0.1 --port 5000 --reload
 ```
-antenna_web/
-├── app.py                 # Servidor Flask + API
+
+Acesse:
+
+```text
+http://127.0.0.1:5000
+```
+
+## Estrutura
+
+```text
+src/iloveantennas/web/
+├── app.py                  # FastAPI, endpoints e templates
+├── config.py               # AntennaConfig e SimulationConfig
+├── schemas.py              # Schemas HTTP e conversores para dataclasses internas
+├── antennas.py             # Ponte entre API e AntennaFactory
+├── analysis.py             # Smith, S11, VSWR, radiacao e parametros
+├── simulation.py           # Orquestracao FDTD/FEM
+├── optimizer.py            # Otimizador de comprimento
+├── optimization.py         # Tarefa async de otimizacao
+├── matching.py             # Redes de casamento
+├── resources.py            # Tipos de antena e materiais derivados do core
+├── state.py                # Estado em memoria
+├── storage.py              # Biblioteca JSON de antenas
 ├── templates/
-│   └── index.html         # Interface principal
+│   ├── index.html          # Tela principal
+│   └── analise.html        # Tela de analise completa
 └── static/
-    ├── css/
-    │   └── style.css      # Estilos (CSS Variables, Dark Mode)
-    └── js/
-        ├── renderer.js    # Engine 3D (Three.js)
-        ├── charts.js      # Gráficos (Chart.js)
-        └── app.js         # Lógica da aplicação
-
-antenna_simulator/         # Backend de simulação
-├── core/                  # Constantes, geometria, grid
-├── solver/                # FDTD solver
-└── visualization/         # Smith Chart, plots
+    ├── css/style.css       # Design system central
+    └── js/                 # App, engine theme, renderer, charts e field renderer
 ```
 
-## 🔧 API Endpoints
+## Frontend
 
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
+- `static/css/style.css` concentra paleta, tipografia, espacamento, componentes e responsividade.
+- `static/js/engine.theme.js` concentra gradiente de campo, contornos, temporizacao, materiais Three.js e cores de cena.
+- `templates/index.html` e `templates/analise.html` devem permanecer sem `style=""`.
+- Cores de graficos em canvas devem vir de `ChartManager.colors`, que espelha os tokens do CSS.
+- `renderer.*.js` cuida do Three.js; `charts.*.js` cuida dos graficos; `app.*.js` cuida de estado, eventos, simulacao e biblioteca.
+
+## Endpoints Principais
+
+| Endpoint | Metodo | Descricao |
+| --- | --- | --- |
+| `/` | GET | Renderiza a tela principal |
+| `/analise` | GET | Renderiza a tela de analise |
 | `/api/antenna/types` | GET | Lista tipos de antena |
-| `/api/antenna/create` | POST | Cria geometria da antena |
-| `/api/smith-chart` | POST | Calcula dados da Carta de Smith |
-| `/api/radiation-pattern` | POST | Calcula padrão de radiação |
-| `/api/simulation/start` | POST | Inicia simulação FDTD |
-| `/api/simulation/{id}/status` | GET | Status da simulação |
-| `/api/simulation/{id}/frames` | GET | Frames da animação |
+| `/api/materials` | GET | Lista materiais |
+| `/api/engine/status` | GET | Diagnostica GPU Windows, WSL e backends da engine |
+| `/api/antennas` | GET/POST | Biblioteca de antenas |
+| `/api/antennas/{id}` | PUT/DELETE | Atualiza ou remove antena da biblioteca |
+| `/api/antenna/create` | POST | Cria geometria serializada para o renderer |
+| `/api/antenna/analysis` | POST | Retorna geometria, Smith, radiacao e parametros |
+| `/api/smith-chart` | POST | Calcula dados de Carta de Smith |
+| `/api/radiation-pattern` | POST | Calcula padrao de radiacao |
+| `/api/matching` | POST | Calcula rede de casamento |
+| `/api/propagation/path-loss` | POST | Calcula FSPL, Okumura-Hata, COST-231 e orcamento de enlace |
+| `/api/propagation/ray-trace` | POST | Calcula caminhos geometricos 2D direto/refletidos |
+| `/api/simulation/start` | POST | Inicia simulacao FDTD ou FEM |
+| `/api/simulation/compare` | POST | Compara FDTD e FEM |
+| `/api/simulation/{id}/status` | GET | Consulta progresso |
+| `/api/simulation/{id}/frames` | GET | Retorna frames de campo |
+| `/api/optimize` | POST | Inicia otimizacao de comprimento |
+| `/api/optimize/{id}/status` | GET | Consulta otimizacao |
 
-## 🎨 Tecnologias
+`POST /api/simulation/start` aceita `solver_backend` com `"auto"`, `"cuda"`, `"numba"` ou `"numpy"`. Aliases como `"gpu"`, `"cuda_gpu"`, `"cpu"`, `"numba_cpu"` e `"numpy_cpu"` sao normalizados em `simulator.engine`. Use `"cuda"` para solicitar os kernels FDTD em Numba CUDA; se o runtime CUDA nao estiver disponivel, a resposta de status inclui `engine.backend_warning` e o solver volta para CPU.
 
-- **Backend**: Flask, NumPy, Matplotlib
-- **Frontend**: HTML5, CSS3, JavaScript ES6+
-- **3D**: Three.js (WebGL)
-- **Gráficos**: Chart.js
-- **Design**: CSS Variables, Flexbox, Grid
+## Design
 
-## 📐 Fórmulas Principais
-
-- **Comprimento de onda**: λ = c/f
-- **Impedância complexa**: Z = R + jX
-- **Coef. de reflexão**: Γ = (Z-Z₀)/(Z+Z₀)
-- **VSWR**: VSWR = (1+|Γ|)/(1-|Γ|)
-- **S11**: S11[dB] = 20·log₁₀(|Γ|)
-
-## 📝 Licença
-
-MIT License
-
-## 👤 Autor
-
-IloveAntenas Team
+Veja `DOCS_DESIGN_SYSTEM.md` na raiz do projeto para paleta, tokens, componentes e regras de manutencao visual.

@@ -13,7 +13,7 @@ ChartManager.prototype.initS11Chart = function(canvasId = 'chart-s11') {
                 label: 'S11',
                 data: [],
                 borderColor: this.colors.primary,
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                backgroundColor: this.colors.primaryFill,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
@@ -75,7 +75,7 @@ ChartManager.prototype.initVSWRChart = function(canvasId = 'chart-vswr') {
                 label: 'VSWR',
                 data: [],
                 borderColor: this.colors.secondary,
-                backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                backgroundColor: this.colors.secondaryFill,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
@@ -137,7 +137,7 @@ ChartManager.prototype.initMatchGainChart = function(canvasId = 'chart-gain-matc
                 label: 'Ganho Efetivo (casamento)',
                 data: [],
                 borderColor: this.colors.success,
-                backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                backgroundColor: this.colors.successFill,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
@@ -198,7 +198,7 @@ ChartManager.prototype.createExpandedS11 = function(canvas, data) {
                 label: 'S11 (dB)',
                 data: data.s11_db,
                 borderColor: this.colors.primary,
-                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                backgroundColor: this.colors.primaryFill,
                 fill: true,
                 tension: 0.4
             }]
@@ -223,7 +223,7 @@ ChartManager.prototype.createExpandedVSWR = function(canvas, data) {
                 label: 'VSWR',
                 data: data.vswr.map(v => Math.min(v, 10)),
                 borderColor: this.colors.secondary,
-                backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                backgroundColor: this.colors.secondaryFill,
                 fill: true,
                 tension: 0.4
             }]

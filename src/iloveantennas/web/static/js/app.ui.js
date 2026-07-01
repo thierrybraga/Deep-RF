@@ -124,7 +124,7 @@ IloveAntenas.prototype.loadLibrary = async function() {
         const tbody = document.querySelector('#antenna-table tbody');
         if (!tbody) return;
         
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Carregando...</td></tr>';
+        tbody.innerHTML = '<tr class="table-loading"><td colspan="7">Carregando...</td></tr>';
         
         const response = await fetch('/api/antennas');
         if (!response.ok) throw new Error('Falha ao carregar biblioteca');
@@ -144,13 +144,12 @@ IloveAntenas.prototype.renderLibraryTable = function(antennas) {
     tbody.innerHTML = '';
     
     if (antennas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Nenhuma antena encontrada</td></tr>';
+        tbody.innerHTML = '<tr class="table-empty"><td colspan="7">Nenhuma antena encontrada</td></tr>';
         return;
     }
     
     antennas.forEach(antenna => {
         const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border-color)';
         
         // Formata valores
         const freq = (antenna.config.frequency / 1e6).toFixed(1);
@@ -158,22 +157,24 @@ IloveAntenas.prototype.renderLibraryTable = function(antennas) {
         const typeName = this.getTypeName(antenna.config.type);
         
         tr.innerHTML = `
-            <td style="padding: 10px;">${antenna.name}</td>
-            <td style="padding: 10px;">${antenna.brand || '-'}</td>
-            <td style="padding: 10px;">${antenna.technology || '-'}</td>
-            <td style="padding: 10px;">${typeName}</td>
-            <td style="padding: 10px;">${freq}</td>
-            <td style="padding: 10px;">${gain}</td>
-            <td style="padding: 10px;">
-                <button class="btn-icon load-antenna" title="Carregar" data-id="${antenna.id}">
-                    <i class="fas fa-upload"></i>
-                </button>
-                <button class="btn-icon edit-antenna" title="Editar" data-id="${antenna.id}">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon delete-antenna" title="Excluir" style="color: #ff4444;" data-id="${antenna.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
+            <td>${antenna.name}</td>
+            <td>${antenna.brand || '-'}</td>
+            <td>${antenna.technology || '-'}</td>
+            <td>${typeName}</td>
+            <td>${freq}</td>
+            <td>${gain}</td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn-icon small load-antenna" title="Carregar" data-id="${antenna.id}">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                    <button class="btn-icon small edit-antenna" title="Editar" data-id="${antenna.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon small delete-antenna danger-icon" title="Excluir" data-id="${antenna.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </td>
         `;
         

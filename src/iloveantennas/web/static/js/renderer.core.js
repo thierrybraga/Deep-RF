@@ -8,6 +8,36 @@
 // CONFIGURAÇÃO GLOBAL
 // ============================================================================
 
+const ENGINE_RENDER_THEME = (window.ENGINE_THEME && window.ENGINE_THEME.rendering) || {};
+
+function themeColor(path, fallback) {
+    const parts = path.split('.');
+    let current = ENGINE_RENDER_THEME;
+    for (const part of parts) {
+        current = current && current[part];
+    }
+    return current || fallback;
+}
+
+function threeColor(value, fallback) {
+    if (window.ENGINE_THEME && typeof window.ENGINE_THEME.hexToNumber === 'function') {
+        return window.ENGINE_THEME.hexToNumber(value, fallback);
+    }
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        const parsed = Number.parseInt(value.replace('#', ''), 16);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+}
+
+function themeMaterial(name, fallback) {
+    const themed = (ENGINE_RENDER_THEME.materials && ENGINE_RENDER_THEME.materials[name]) || {};
+    const merged = { ...fallback, ...themed };
+    merged.color = threeColor(merged.color, fallback.color);
+    return merged;
+}
+
 const RENDER_CONFIG = {
     quality: {
         low: { pixelRatio: 1, shadows: false, antialias: false },
@@ -24,12 +54,12 @@ const RENDER_CONFIG = {
         scale: 1.0
     },
     materials: {
-        copper: { color: 0xb87333, metalness: 1.0, roughness: 0.15, clearcoat: 1.0, clearcoatRoughness: 0.1 },
-        aluminum: { color: 0xe0e0e0, metalness: 1.0, roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.1 },
-        gold: { color: 0xffd700, metalness: 1.0, roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.05 },
-        silver: { color: 0xf0f0f0, metalness: 1.0, roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.05 },
-        pcb: { color: 0x004400, metalness: 0.1, roughness: 0.5, clearcoat: 0.5, clearcoatRoughness: 0.1 },
-        teflon: { color: 0xffffff, metalness: 0.0, roughness: 0.2, transmission: 0.9, opacity: 0.8, transparent: true, ior: 1.5 }
+        copper: themeMaterial('copper', { color: 0xb87333, metalness: 1.0, roughness: 0.15, clearcoat: 1.0, clearcoatRoughness: 0.1 }),
+        aluminum: themeMaterial('aluminum', { color: 0xe0e0e0, metalness: 1.0, roughness: 0.1, clearcoat: 1.0, clearcoatRoughness: 0.1 }),
+        gold: themeMaterial('gold', { color: 0xffd700, metalness: 1.0, roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.05 }),
+        silver: themeMaterial('silver', { color: 0xf0f0f0, metalness: 1.0, roughness: 0.05, clearcoat: 1.0, clearcoatRoughness: 0.05 }),
+        pcb: themeMaterial('pcb', { color: 0x004400, metalness: 0.1, roughness: 0.5, clearcoat: 0.5, clearcoatRoughness: 0.1 }),
+        teflon: themeMaterial('teflon', { color: 0xffffff, metalness: 0.0, roughness: 0.2, transmission: 0.9, opacity: 0.8, transparent: true, ior: 1.5 })
     }
 };
 
@@ -240,12 +270,12 @@ class AntennaRenderer {
 
     showWebGLError() {
         const errorMsg = document.createElement('div');
-        errorMsg.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:#ff4444; background:rgba(0,0,0,0.9); padding:20px; border-radius:8px; text-align:center; z-index:1000; font-family: sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #ff4444;';
-        errorMsg.innerHTML = '<h3 style="margin-top:0">Erro Gráfico 3D</h3><p>Não foi possível inicializar o motor de renderização (WebGL).</p>';
+        errorMsg.className = 'webgl-error';
+        errorMsg.innerHTML = '<h3>Erro Gráfico 3D</h3><p>Não foi possível inicializar o motor de renderização (WebGL).</p>';
         
         const container = this.canvas.parentElement;
         if (container) {
-            const existing = container.querySelector('div[style*="color:#ff4444"]');
+            const existing = container.querySelector('.webgl-error');
             if (existing) existing.remove();
             container.appendChild(errorMsg);
         }
@@ -261,8 +291,10 @@ class AntennaRenderer {
     
     createScene() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x0a0a1a);
-        this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.12);
+        const background = themeColor('scene.darkBackground', '#0a0a1a');
+        const fog = themeColor('scene.darkFog', background);
+        this.scene.background = new THREE.Color(background);
+        this.scene.fog = new THREE.FogExp2(fog, 0.12);
         
         this.scene.add(this.antennaGroup);
         this.scene.add(this.helpersGroup);
@@ -301,15 +333,19 @@ class AntennaRenderer {
         keyLight.shadow.camera.far = 50;
         this.scene.add(keyLight);
         
-        const fillLight = new THREE.DirectionalLight(0x88aaff, 0.3);
+        const fillLight = new THREE.DirectionalLight(threeColor(themeColor('scene.lightGrid', '#38bdf8'), 0x88aaff), 0.3);
         fillLight.position.set(-3, 2, -3);
         this.scene.add(fillLight);
         
-        const rimLight = new THREE.PointLight(0xff8866, 0.2, 20);
+        const rimLight = new THREE.PointLight(threeColor(themeColor('feed.glow', '#f59e0b'), 0xff8866), 0.2, 20);
         rimLight.position.set(0, -3, -5);
         this.scene.add(rimLight);
         
-        const hemiLight = new THREE.HemisphereLight(0x88aaff, 0x444422, 0.3);
+        const hemiLight = new THREE.HemisphereLight(
+            threeColor(themeColor('scene.lightGrid', '#38bdf8'), 0x88aaff),
+            threeColor(themeColor('scene.ground', '#202936'), 0x444422),
+            0.3
+        );
         this.scene.add(hemiLight);
     }
     
@@ -336,19 +372,19 @@ class AntennaRenderer {
         }
         
         this.materials.feed = new THREE.MeshBasicMaterial({
-            color: 0xff4444,
+            color: threeColor(themeColor('feed.core', '#ef4444'), 0xff4444),
             transparent: true,
             opacity: 0.9
         });
         
         this.materials.glow = new THREE.MeshBasicMaterial({
-            color: 0xff6644,
+            color: threeColor(themeColor('feed.glow', '#f59e0b'), 0xff6644),
             transparent: true,
             opacity: 0.3
         });
         
         this.materials.ground = new THREE.MeshStandardMaterial({
-            color: 0x222233,
+            color: threeColor(themeColor('scene.ground', '#202936'), 0x222233),
             metalness: 0.3,
             roughness: 0.8,
             transparent: true,
@@ -357,7 +393,12 @@ class AntennaRenderer {
     }
     
     createHelpers() {
-        this.gridHelper = new THREE.GridHelper(4, 40, 0x00ffff, 0x004444);
+        this.gridHelper = new THREE.GridHelper(
+            4,
+            40,
+            threeColor(themeColor('scene.grid', '#2dd4bf'), 0x00ffff),
+            threeColor(themeColor('scene.gridSecondary', '#14515a'), 0x004444)
+        );
         this.gridHelper.position.y = -0.5;
         this.gridHelper.material.transparent = true;
         this.gridHelper.material.opacity = 0.3;
@@ -378,9 +419,9 @@ class AntennaRenderer {
     
     createAxisLabels() {
         const labels = [
-            { text: 'X', color: '#ff4444', pos: [0.6, 0, 0] },
-            { text: 'Y', color: '#44ff44', pos: [0, 0.6, 0] },
-            { text: 'Z', color: '#4444ff', pos: [0, 0, 0.6] }
+            { text: 'X', color: themeColor('axes.x', '#ef4444'), pos: [0.6, 0, 0] },
+            { text: 'Y', color: themeColor('axes.y', '#22c55e'), pos: [0, 0.6, 0] },
+            { text: 'Z', color: themeColor('axes.z', '#38bdf8'), pos: [0, 0, 0.6] }
         ];
         
         labels.forEach(({ text, color, pos }) => {

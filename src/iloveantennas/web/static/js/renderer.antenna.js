@@ -77,7 +77,12 @@ AntennaRenderer.prototype.updateHelpers = function(bbox) {
     }
     
     const divisions = 20;
-    this.gridHelper = new THREE.GridHelper(gridSize, divisions, 0x00ffff, 0x004444);
+    this.gridHelper = new THREE.GridHelper(
+        gridSize,
+        divisions,
+        threeColor(themeColor('scene.grid', '#2dd4bf'), 0x00ffff),
+        threeColor(themeColor('scene.gridSecondary', '#14515a'), 0x004444)
+    );
     this.gridHelper.position.y = -0.01;
     this.gridHelper.material.transparent = true;
     this.gridHelper.material.opacity = 0.3;

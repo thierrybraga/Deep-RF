@@ -172,13 +172,13 @@ class AntennaOptimizer:
         # Use lower resolution for speed (10 cells/lambda is bare minimum for FDTD, but maybe ok for resonance check)
         wavelength = C0 / freq
         grid = create_grid_for_antenna(
-            antenna, freq_max=freq, cells_per_wavelength=15, pml_layers=6
+            antenna, freq_max=freq, cells_per_lambda=15, pml_layers=6
         )
 
         solver = FDTDSolver(grid, use_numba=True)  # Force numba if possible
 
         # Source (Broadband Gaussian)
-        center = (grid.nx // 2, grid.ny // 2, grid.nz // 2)
+        center = (grid.config.nx // 2, grid.config.ny // 2, grid.config.nz // 2)
         # tau ~ 0.5/f ensures bandwidth covers f
         source = GaussianSource(
             position=center, component="Ez", amplitude=1.0, tau=1.0 / (2 * freq)

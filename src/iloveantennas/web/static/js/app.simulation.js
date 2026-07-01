@@ -135,10 +135,13 @@ IloveAntenas.prototype.processComparisonResults = function(framesFDTD, framesFEM
 
 IloveAntenas.prototype.getHeatmapColor = function(value) {
     const v = Math.max(0, Math.min(1, value));
-    const r = Math.floor(255 * v);
-    const g = 0;
-    const b = Math.floor(255 * (1 - 0.7 * v));
-    return [r, g, b];
+    const theme = window.ENGINE_THEME || {};
+    if (typeof theme.generateColormap === 'function') {
+        const colormap = this.comparisonColormap || theme.generateColormap(256);
+        this.comparisonColormap = colormap;
+        return colormap[Math.floor(v * 255)];
+    }
+    return [Math.floor(255 * v), 0, Math.floor(255 * (1 - 0.7 * v))];
 };
 
 IloveAntenas.prototype.renderComparisonCanvas = function(canvasId, data) {
@@ -157,7 +160,8 @@ IloveAntenas.prototype.renderComparisonCanvas = function(canvasId, data) {
     const width = canvas.width;
     const height = canvas.height;
     
-    ctx.fillStyle = '#000';
+    const styles = getComputedStyle(document.documentElement);
+    ctx.fillStyle = styles.getPropertyValue('--color-canvas').trim() || '#000';
     ctx.fillRect(0, 0, width, height);
     
     if (!data || data.length === 0) return;
@@ -189,22 +193,8 @@ IloveAntenas.prototype.renderComparisonCanvas = function(canvasId, data) {
             
             const intensity = Math.abs(val) / maxVal;
             
-            let r, g, b;
             const t = Math.max(0, Math.min(1, intensity));
-            
-            if (t < 0.25) {
-                const u = t / 0.25;
-                r = 0; g = Math.floor(255 * u); b = 255;
-            } else if (t < 0.5) {
-                const u = (t - 0.25) / 0.25;
-                r = 0; g = 255; b = Math.floor(255 * (1 - u));
-            } else if (t < 0.75) {
-                const u = (t - 0.5) / 0.25;
-                r = Math.floor(255 * u); g = 255; b = 0;
-            } else {
-                const u = (t - 0.75) / 0.25;
-                r = 255; g = Math.floor(255 * (1 - u)); b = 0;
-            }
+            const [r, g, b] = this.getHeatmapColor(t);
             
             buf[y * width + x] = (255 << 24) | (b << 16) | (g << 8) | r;
         }

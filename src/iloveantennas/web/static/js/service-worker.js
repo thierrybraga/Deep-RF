@@ -1,4 +1,4 @@
-const CACHE_NAME = "antennasim-cache-v1";
+const CACHE_NAME = "antennasim-cache-v9";
 const OFFLINE_URLS = [
   "/",
   "/static/css/style.css",
@@ -6,8 +6,8 @@ const OFFLINE_URLS = [
   "/static/js/app.events.js",
   "/static/js/app.sim.core.js",
   "/static/js/app.simulation.js",
-  "/static/js/app.library.js",
   "/static/js/app.ui.js",
+  "/static/js/engine.theme.js",
   "/static/js/renderer.core.js",
   "/static/js/renderer.antenna.js",
   "/static/js/renderer.field.js",
@@ -52,15 +52,14 @@ self.addEventListener("fetch", event => {
   if (request.method !== "GET") {
     return;
   }
+  if (url.origin !== self.location.origin) {
+    return;
+  }
   if (url.pathname.startsWith("/api/")) {
     return;
   }
   event.respondWith(
-    caches.match(request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(request).then(networkResponse => {
+    fetch(request).then(networkResponse => {
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
           return networkResponse;
         }
@@ -69,7 +68,11 @@ self.addEventListener("fetch", event => {
           cache.put(request, responseToCache);
         });
         return networkResponse;
-      }).catch(() => {
+    }).catch(() => {
+      return caches.match(request).then(cachedResponse => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
         if (url.pathname === "/") {
           return caches.match("/");
         }

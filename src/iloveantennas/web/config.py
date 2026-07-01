@@ -48,6 +48,7 @@ class SimulationConfig:
     source_type: str = "gaussian"
     source_amplitude: float = 1.0
     use_optimized: bool = True  # Nova opção para usar solver otimizado
+    solver_backend: str = "auto"  # 'auto', 'cuda', 'numba' or 'numpy'
     method: str = "fdtd"  # 'fdtd' or 'fem'
 
     def to_dict(self):

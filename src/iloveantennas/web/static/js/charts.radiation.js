@@ -15,7 +15,7 @@ ChartManager.prototype.initRadiationChart = function(canvasId = 'chart-radiation
             label: 'Plano E',
             data: new Array(37).fill(0),
             borderColor: this.colors.primary,
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            backgroundColor: this.colors.primaryFill,
             pointRadius: 0,
             borderWidth: 2
         });
@@ -24,7 +24,7 @@ ChartManager.prototype.initRadiationChart = function(canvasId = 'chart-radiation
             label: 'Plano H',
             data: new Array(37).fill(0),
             borderColor: this.colors.secondary,
-            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            backgroundColor: this.colors.secondaryFill,
             pointRadius: 0,
             borderWidth: 2
         });
@@ -34,7 +34,7 @@ ChartManager.prototype.initRadiationChart = function(canvasId = 'chart-radiation
                 label: 'Plano E',
                 data: new Array(37).fill(0),
                 borderColor: this.colors.primary,
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                backgroundColor: this.colors.primaryFill,
                 pointRadius: 0,
                 borderWidth: 2
             },
@@ -42,7 +42,7 @@ ChartManager.prototype.initRadiationChart = function(canvasId = 'chart-radiation
                 label: 'Plano H',
                 data: new Array(37).fill(0),
                 borderColor: this.colors.secondary,
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                backgroundColor: this.colors.secondaryFill,
                 pointRadius: 0,
                 borderWidth: 2
             },
@@ -50,7 +50,7 @@ ChartManager.prototype.initRadiationChart = function(canvasId = 'chart-radiation
                 label: 'E left',
                 data: new Array(37).fill(0),
                 borderColor: this.colors.success,
-                backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                backgroundColor: this.colors.successFill,
                 pointRadius: 0,
                 borderWidth: 1.5,
                 borderDash: [4, 2]
@@ -59,7 +59,7 @@ ChartManager.prototype.initRadiationChart = function(canvasId = 'chart-radiation
                 label: 'E right',
                 data: new Array(37).fill(0),
                 borderColor: this.colors.warning,
-                backgroundColor: 'rgba(234, 179, 8, 0.08)',
+                backgroundColor: this.colors.warningFill,
                 pointRadius: 0,
                 borderWidth: 1.5,
                 borderDash: [4, 2]
@@ -164,7 +164,7 @@ ChartManager.prototype.createExpandedRadiation = function(canvas, data) {
                     label: 'Plano E',
                     data: resample(data.pattern_e),
                     borderColor: this.colors.primary,
-                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    backgroundColor: this.colors.primaryFill,
                     pointRadius: 1,
                     borderWidth: 2
                 },
@@ -172,7 +172,7 @@ ChartManager.prototype.createExpandedRadiation = function(canvas, data) {
                     label: 'Plano H',
                     data: resample(data.pattern_h),
                     borderColor: this.colors.secondary,
-                    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                    backgroundColor: this.colors.secondaryFill,
                     pointRadius: 1,
                     borderWidth: 2
                 }

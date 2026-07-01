@@ -1,170 +1,53 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import threading
 import time
 import uuid
-from typing import Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 from iloveantennas.simulator.core.constants import C0
+from iloveantennas.simulator.propagation import (
+    compare_path_loss,
+    trace_2d_rays,
+)
+from iloveantennas.simulator.runtime import get_runtime_status
 from iloveantennas.web.analysis import (
     calculate_parameters,
     calculate_radiation_pattern,
     calculate_smith_chart_data,
 )
 from iloveantennas.web.antennas import create_antenna, get_antenna_geometry_data
-from iloveantennas.web.config import AntennaConfig, SimulationConfig
-from iloveantennas.web.matching import MatchingResult, NetworkType, calculate_matching
+from iloveantennas.web.matching import MatchingResult, calculate_matching
 from iloveantennas.web.optimization import run_optimization_task
 from iloveantennas.web.resources import ANTENNA_TYPES, MATERIALS
+from iloveantennas.web.schemas import (
+    AntennaCreateRequest,
+    CalculateParametersRequest,
+    MatchingRequest,
+    OptimizeRequest,
+    PropagationRequest,
+    RadiationPatternRequest,
+    RayTraceRequest,
+    SimulationStartRequest,
+    SmithChartRequest,
+    UserAntennaModel,
+    antenna_config_from_payload,
+    model_dump,
+    propagation_environment_from_payload,
+    ray_trace_inputs_from_payload,
+    simulation_config_from_payload,
+)
 from iloveantennas.web.simulation import run_fdtd_simulation, run_fem_simulation
 from iloveantennas.web.state import optimization_lock, optimizations, simulation_lock, simulations
 from iloveantennas.web.storage import storage
-
-
-class UserAntennaModel(BaseModel):
-    id: Optional[str] = None
-    name: str
-    brand: str = "Custom"
-    technology: str = "General"
-    config: dict
-
-
-class AntennaCreateRequest(BaseModel):
-    type: str = "dipole"
-    frequency: float = 300e6
-    length: Optional[float] = None
-    radius: float = 0.001
-    num_directors: int = 3
-    substrate_er: float = 4.4
-    substrate_h: float = 1.6e-3
-    turns: int = 5
-    aperture_width: Optional[float] = None
-    aperture_height: Optional[float] = None
-    flare_length: Optional[float] = None
-    dish_diameter: Optional[float] = None
-    focal_length: Optional[float] = None
-    tau: float = 0.86
-    sigma: float = 0.15
-    loop_radius: Optional[float] = None
-    side_length: Optional[float] = None
-    reflector_distance: Optional[float] = None
-    disc_radius: Optional[float] = None
-    cone_radius: Optional[float] = None
-    cone_height: Optional[float] = None
-
-
-class SimulationStartRequest(BaseModel):
-    antenna_type: str = "dipole"
-    frequency: float = 300e6
-    length: Optional[float] = None
-    radius: float = 0.001
-    num_directors: int = 3
-    substrate_er: float = 4.4
-    substrate_h: float = 1.6e-3
-    turns: int = 5
-    aperture_width: Optional[float] = None
-    aperture_height: Optional[float] = None
-    flare_length: Optional[float] = None
-    dish_diameter: Optional[float] = None
-    focal_length: Optional[float] = None
-    tau: float = 0.86
-    sigma: float = 0.15
-    loop_radius: Optional[float] = None
-    side_length: Optional[float] = None
-    reflector_distance: Optional[float] = None
-    disc_radius: Optional[float] = None
-    cone_radius: Optional[float] = None
-    cone_height: Optional[float] = None
-    cells_per_wavelength: int = 15
-    num_steps: int = 200
-    pml_layers: int = 8
-    courant: float = 0.99
-    source_type: str = "gaussian"
-    source_amplitude: float = 1.0
-    use_optimized: bool = True
-    method: str = "fdtd"
-
-
-class SmithChartRequest(BaseModel):
-    type: str = "dipole"
-    frequency: float = 300e6
-    length: Optional[float] = None
-    radius: float = 0.001
-    num_directors: int = 3
-    substrate_er: float = 4.4
-    substrate_h: float = 1.6e-3
-    turns: int = 5
-    aperture_width: Optional[float] = None
-    aperture_height: Optional[float] = None
-    flare_length: Optional[float] = None
-    dish_diameter: Optional[float] = None
-    focal_length: Optional[float] = None
-    tau: float = 0.86
-    sigma: float = 0.15
-    loop_radius: Optional[float] = None
-    side_length: Optional[float] = None
-    reflector_distance: Optional[float] = None
-    disc_radius: Optional[float] = None
-    cone_radius: Optional[float] = None
-    cone_height: Optional[float] = None
-    mode: str = "analytical"
-
-
-class RadiationPatternRequest(BaseModel):
-    type: str = "dipole"
-    frequency: float = 300e6
-    length: Optional[float] = None
-    radius: float = 0.001
-    num_directors: int = 3
-    substrate_er: float = 4.4
-    substrate_h: float = 1.6e-3
-    turns: int = 5
-    aperture_width: Optional[float] = None
-    aperture_height: Optional[float] = None
-    flare_length: Optional[float] = None
-    dish_diameter: Optional[float] = None
-    focal_length: Optional[float] = None
-    tau: float = 0.86
-    sigma: float = 0.15
-    loop_radius: Optional[float] = None
-    side_length: Optional[float] = None
-    reflector_distance: Optional[float] = None
-    disc_radius: Optional[float] = None
-    cone_radius: Optional[float] = None
-    cone_height: Optional[float] = None
-    mode: str = "analytical"
-
-
-class CalculateParametersRequest(BaseModel):
-    frequency: float = 300e6
-    directivity_db: float | None = None
-
-
-class OptimizeRequest(BaseModel):
-    antenna_type: str = "dipole"
-    target_freq: float = 300e6
-    start_length: Optional[float] = None
-    radius: float = 0.001
-
-
-class MatchingRequest(BaseModel):
-    z_load_re: float
-    z_load_im: float
-    z0: float = 50.0
-    frequency: float
-    network_type: NetworkType = "L"
-    q: float | None = None
 
 
 app = FastAPI(title="IloveAntenas Web API")
@@ -218,6 +101,11 @@ def get_materials():
     return MATERIALS
 
 
+@app.get("/api/engine/status")
+def get_engine_status():
+    return {"success": True, "data": get_runtime_status()}
+
+
 @app.get("/api/antenna/types")
 def get_antenna_types():
     return ANTENNA_TYPES
@@ -230,15 +118,15 @@ def list_antennas():
 
 @app.post("/api/antennas")
 def create_antenna_db(antenna: UserAntennaModel):
-    return storage.create(antenna.dict())
+    return storage.create(model_dump(antenna))
 
 
 @app.put("/api/antennas/{antenna_id}")
 def update_antenna_db(antenna_id: str, antenna: UserAntennaModel):
-    result = storage.update(antenna_id, antenna.dict())
+    result = storage.update(antenna_id, model_dump(antenna))
     if result:
         return result
-    return {"error": "Antenna not found"}, 404
+    raise HTTPException(status_code=404, detail="Antenna not found")
 
 
 @app.delete("/api/antennas/{antenna_id}")
@@ -250,39 +138,7 @@ def delete_antenna_db(antenna_id: str):
 @app.post("/api/antenna/create")
 def create_antenna_endpoint(payload: AntennaCreateRequest):
     try:
-        config = AntennaConfig(
-            type=payload.type,
-            frequency=float(payload.frequency),
-            length=float(payload.length) if payload.length is not None else None,
-            radius=float(payload.radius),
-            num_directors=int(payload.num_directors),
-            substrate_er=float(payload.substrate_er),
-            substrate_h=float(payload.substrate_h),
-            turns=int(payload.turns),
-            aperture_width=(
-                float(payload.aperture_width) if payload.aperture_width is not None else None
-            ),
-            aperture_height=(
-                float(payload.aperture_height) if payload.aperture_height is not None else None
-            ),
-            flare_length=float(payload.flare_length) if payload.flare_length is not None else None,
-            dish_diameter=(
-                float(payload.dish_diameter) if payload.dish_diameter is not None else None
-            ),
-            focal_length=float(payload.focal_length) if payload.focal_length is not None else None,
-            tau=float(payload.tau),
-            sigma=float(payload.sigma),
-            loop_radius=float(payload.loop_radius) if payload.loop_radius is not None else None,
-            side_length=float(payload.side_length) if payload.side_length is not None else None,
-            reflector_distance=(
-                float(payload.reflector_distance)
-                if payload.reflector_distance is not None
-                else None
-            ),
-            disc_radius=float(payload.disc_radius) if payload.disc_radius is not None else None,
-            cone_radius=float(payload.cone_radius) if payload.cone_radius is not None else None,
-            cone_height=float(payload.cone_height) if payload.cone_height is not None else None,
-        )
+        config = antenna_config_from_payload(payload)
 
         antenna = create_antenna(config)
         geometry_data = get_antenna_geometry_data(antenna)
@@ -299,39 +155,7 @@ def create_antenna_endpoint(payload: AntennaCreateRequest):
 @app.post("/api/antenna/analysis")
 def antenna_full_analysis(payload: AntennaCreateRequest):
     try:
-        config = AntennaConfig(
-            type=payload.type,
-            frequency=float(payload.frequency),
-            length=float(payload.length) if payload.length is not None else None,
-            radius=float(payload.radius),
-            num_directors=int(payload.num_directors),
-            substrate_er=float(payload.substrate_er),
-            substrate_h=float(payload.substrate_h),
-            turns=int(payload.turns),
-            aperture_width=(
-                float(payload.aperture_width) if payload.aperture_width is not None else None
-            ),
-            aperture_height=(
-                float(payload.aperture_height) if payload.aperture_height is not None else None
-            ),
-            flare_length=float(payload.flare_length) if payload.flare_length is not None else None,
-            dish_diameter=(
-                float(payload.dish_diameter) if payload.dish_diameter is not None else None
-            ),
-            focal_length=float(payload.focal_length) if payload.focal_length is not None else None,
-            tau=float(payload.tau),
-            sigma=float(payload.sigma),
-            loop_radius=float(payload.loop_radius) if payload.loop_radius is not None else None,
-            side_length=float(payload.side_length) if payload.side_length is not None else None,
-            reflector_distance=(
-                float(payload.reflector_distance)
-                if payload.reflector_distance is not None
-                else None
-            ),
-            disc_radius=float(payload.disc_radius) if payload.disc_radius is not None else None,
-            cone_radius=float(payload.cone_radius) if payload.cone_radius is not None else None,
-            cone_height=float(payload.cone_height) if payload.cone_height is not None else None,
-        )
+        config = antenna_config_from_payload(payload)
 
         antenna = create_antenna(config)
         geometry_data = get_antenna_geometry_data(antenna)
@@ -393,61 +217,51 @@ def matching_endpoint(payload: MatchingRequest):
             },
         }
     except Exception as e:
-        return {"success": True, "error": str(e)}
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/propagation/path-loss")
+def propagation_path_loss_endpoint(payload: PropagationRequest):
+    try:
+        environment = propagation_environment_from_payload(payload)
+        data = compare_path_loss(
+            environment,
+            tx_power_dbm=float(payload.tx_power_dbm),
+            tx_gain_dbi=float(payload.tx_gain_dbi),
+            rx_gain_dbi=float(payload.rx_gain_dbi),
+            receiver_sensitivity_dbm=(
+                float(payload.receiver_sensitivity_dbm)
+                if payload.receiver_sensitivity_dbm is not None
+                else None
+            ),
+        )
+        return {"success": True, "data": data}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/propagation/ray-trace")
+def propagation_ray_trace_endpoint(payload: RayTraceRequest):
+    try:
+        tx, rx, obstacles = ray_trace_inputs_from_payload(payload)
+        paths = trace_2d_rays(
+            tx,
+            rx,
+            obstacles,
+            float(payload.frequency),
+            max_reflections=int(payload.max_reflections),
+        )
+        return {"success": True, "data": {"paths": [path.to_dict() for path in paths]}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @app.post("/api/simulation/compare")
 def start_comparison(payload: SimulationStartRequest):
     try:
-        # Config common
-        antenna_config = AntennaConfig(
-            type=payload.antenna_type,
-            frequency=float(payload.frequency),
-            length=float(payload.length) if payload.length is not None else None,
-            radius=float(payload.radius),
-            num_directors=int(payload.num_directors),
-            substrate_er=float(payload.substrate_er),
-            substrate_h=float(payload.substrate_h),
-            turns=int(payload.turns),
-            aperture_width=(
-                float(payload.aperture_width) if payload.aperture_width is not None else None
-            ),
-            aperture_height=(
-                float(payload.aperture_height) if payload.aperture_height is not None else None
-            ),
-            flare_length=float(payload.flare_length) if payload.flare_length is not None else None,
-            dish_diameter=(
-                float(payload.dish_diameter) if payload.dish_diameter is not None else None
-            ),
-            focal_length=float(payload.focal_length) if payload.focal_length is not None else None,
-            tau=float(payload.tau),
-            sigma=float(payload.sigma),
-            loop_radius=float(payload.loop_radius) if payload.loop_radius is not None else None,
-        )
-
-        # FDTD Config
-        sim_config_fdtd = SimulationConfig(
-            cells_per_wavelength=int(payload.cells_per_wavelength),
-            num_steps=int(payload.num_steps),
-            pml_layers=int(payload.pml_layers),
-            courant=float(payload.courant),
-            source_type=payload.source_type,
-            source_amplitude=float(payload.source_amplitude),
-            use_optimized=bool(payload.use_optimized),
-            method="fdtd",
-        )
-
-        # FEM Config
-        sim_config_fem = SimulationConfig(
-            cells_per_wavelength=int(payload.cells_per_wavelength),
-            num_steps=1,  # FEM is freq domain
-            pml_layers=int(payload.pml_layers),
-            courant=float(payload.courant),
-            source_type=payload.source_type,
-            source_amplitude=float(payload.source_amplitude),
-            use_optimized=bool(payload.use_optimized),
-            method="fem",
-        )
+        antenna_config = antenna_config_from_payload(payload, type_field="antenna_type")
+        sim_config_fdtd = simulation_config_from_payload(payload, method="fdtd")
+        sim_config_fem = simulation_config_from_payload(payload, method="fem", num_steps=1)
 
         id_fdtd = str(uuid.uuid4())[:8]
         id_fem = str(uuid.uuid4())[:8]
@@ -496,41 +310,8 @@ def start_comparison(payload: SimulationStartRequest):
 @app.post("/api/simulation/start")
 def start_simulation(payload: SimulationStartRequest):
     try:
-        antenna_config = AntennaConfig(
-            type=payload.antenna_type,
-            frequency=float(payload.frequency),
-            length=float(payload.length) if payload.length is not None else None,
-            radius=float(payload.radius),
-            num_directors=int(payload.num_directors),
-            substrate_er=float(payload.substrate_er),
-            substrate_h=float(payload.substrate_h),
-            turns=int(payload.turns),
-            aperture_width=(
-                float(payload.aperture_width) if payload.aperture_width is not None else None
-            ),
-            aperture_height=(
-                float(payload.aperture_height) if payload.aperture_height is not None else None
-            ),
-            flare_length=float(payload.flare_length) if payload.flare_length is not None else None,
-            dish_diameter=(
-                float(payload.dish_diameter) if payload.dish_diameter is not None else None
-            ),
-            focal_length=float(payload.focal_length) if payload.focal_length is not None else None,
-            tau=float(payload.tau),
-            sigma=float(payload.sigma),
-            loop_radius=float(payload.loop_radius) if payload.loop_radius is not None else None,
-        )
-
-        sim_config = SimulationConfig(
-            cells_per_wavelength=int(payload.cells_per_wavelength),
-            num_steps=int(payload.num_steps),
-            pml_layers=int(payload.pml_layers),
-            courant=float(payload.courant),
-            source_type=payload.source_type,
-            source_amplitude=float(payload.source_amplitude),
-            use_optimized=bool(payload.use_optimized),
-            method=payload.method,
-        )
+        antenna_config = antenna_config_from_payload(payload, type_field="antenna_type")
+        sim_config = simulation_config_from_payload(payload)
 
         sim_id = str(uuid.uuid4())[:8]
 
@@ -593,39 +374,7 @@ def get_simulation_frames(sim_id: str):
 @app.post("/api/smith-chart")
 def get_smith_chart(payload: SmithChartRequest):
     try:
-        config = AntennaConfig(
-            type=payload.type,
-            frequency=float(payload.frequency),
-            length=float(payload.length) if payload.length is not None else None,
-            radius=float(payload.radius),
-            num_directors=int(payload.num_directors),
-            substrate_er=float(payload.substrate_er),
-            substrate_h=float(payload.substrate_h),
-            turns=int(payload.turns),
-            aperture_width=(
-                float(payload.aperture_width) if payload.aperture_width is not None else None
-            ),
-            aperture_height=(
-                float(payload.aperture_height) if payload.aperture_height is not None else None
-            ),
-            flare_length=float(payload.flare_length) if payload.flare_length is not None else None,
-            dish_diameter=(
-                float(payload.dish_diameter) if payload.dish_diameter is not None else None
-            ),
-            focal_length=float(payload.focal_length) if payload.focal_length is not None else None,
-            tau=float(payload.tau),
-            sigma=float(payload.sigma),
-            loop_radius=float(payload.loop_radius) if payload.loop_radius is not None else None,
-            side_length=float(payload.side_length) if payload.side_length is not None else None,
-            reflector_distance=(
-                float(payload.reflector_distance)
-                if payload.reflector_distance is not None
-                else None
-            ),
-            disc_radius=float(payload.disc_radius) if payload.disc_radius is not None else None,
-            cone_radius=float(payload.cone_radius) if payload.cone_radius is not None else None,
-            cone_height=float(payload.cone_height) if payload.cone_height is not None else None,
-        )
+        config = antenna_config_from_payload(payload)
 
         smith_data = calculate_smith_chart_data(config, mode=payload.mode)
 
@@ -637,39 +386,7 @@ def get_smith_chart(payload: SmithChartRequest):
 @app.post("/api/radiation-pattern")
 def get_radiation_pattern(payload: RadiationPatternRequest):
     try:
-        config = AntennaConfig(
-            type=payload.type,
-            frequency=float(payload.frequency),
-            length=float(payload.length) if payload.length is not None else None,
-            radius=float(payload.radius),
-            num_directors=int(payload.num_directors),
-            substrate_er=float(payload.substrate_er),
-            substrate_h=float(payload.substrate_h),
-            turns=int(payload.turns),
-            aperture_width=(
-                float(payload.aperture_width) if payload.aperture_width is not None else None
-            ),
-            aperture_height=(
-                float(payload.aperture_height) if payload.aperture_height is not None else None
-            ),
-            flare_length=float(payload.flare_length) if payload.flare_length is not None else None,
-            dish_diameter=(
-                float(payload.dish_diameter) if payload.dish_diameter is not None else None
-            ),
-            focal_length=float(payload.focal_length) if payload.focal_length is not None else None,
-            tau=float(payload.tau),
-            sigma=float(payload.sigma),
-            loop_radius=float(payload.loop_radius) if payload.loop_radius is not None else None,
-            side_length=float(payload.side_length) if payload.side_length is not None else None,
-            reflector_distance=(
-                float(payload.reflector_distance)
-                if payload.reflector_distance is not None
-                else None
-            ),
-            disc_radius=float(payload.disc_radius) if payload.disc_radius is not None else None,
-            cone_radius=float(payload.cone_radius) if payload.cone_radius is not None else None,
-            cone_height=float(payload.cone_height) if payload.cone_height is not None else None,
-        )
+        config = antenna_config_from_payload(payload)
 
         pattern_data = calculate_radiation_pattern(config, mode=payload.mode)
 
@@ -705,7 +422,7 @@ def start_optimization_endpoint(payload: OptimizeRequest):
 
     thread = threading.Thread(
         target=run_optimization_task,
-        args=(opt_id, payload.dict()),
+        args=(opt_id, model_dump(payload)),
     )
     thread.daemon = True
     thread.start()
@@ -734,4 +451,4 @@ if __name__ == "__main__":
     print("  Servidor: http://localhost:5000")
     print("=" * 60 + "\n")
 
-    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)
+    uvicorn.run("iloveantennas.web.app:app", host="0.0.0.0", port=5000, reload=True)

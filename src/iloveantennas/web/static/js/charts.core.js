@@ -6,15 +6,22 @@ class ChartManager {
         this.smithDims = null;
         this.currentData = { smith: null, radiation: null };
         
+        const styles = getComputedStyle(document.documentElement);
+        const token = (name, fallback) => styles.getPropertyValue(name).trim() || fallback;
+
         this.colors = {
-            primary: '#3b82f6',
-            secondary: '#8b5cf6',
-            success: '#10b981',
-            warning: '#f59e0b',
-            error: '#ef4444',
-            grid: 'rgba(148, 163, 184, 0.15)',
-            text: '#94a3b8',
-            background: '#1e293b'
+            primary: token('--color-primary', '#2dd4bf'),
+            secondary: token('--color-info', '#38bdf8'),
+            success: token('--color-success', '#22c55e'),
+            warning: token('--color-warning', '#f59e0b'),
+            error: token('--color-danger', '#ef4444'),
+            grid: 'rgba(170, 182, 197, 0.18)',
+            text: token('--color-text-secondary', '#aab6c5'),
+            background: token('--color-surface', '#1b222c'),
+            primaryFill: 'rgba(45, 212, 191, 0.14)',
+            secondaryFill: 'rgba(56, 189, 248, 0.14)',
+            successFill: 'rgba(34, 197, 94, 0.14)',
+            warningFill: 'rgba(245, 158, 11, 0.14)'
         };
     }
 }

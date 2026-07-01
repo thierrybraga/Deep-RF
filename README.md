@@ -2,12 +2,14 @@
 
 IloveAntenas é um sistema completo para estudo de antenas e campos eletromagnéticos, composto por:
 
-- **Núcleo de simulação** (`antenna_simulator/`):
+- **Núcleo de simulação** (`src/iloveantennas/simulator/`):
   - Motor FDTD em Python com suporte a múltiplos tipos de antena.
+  - Backend FDTD opcional em Numba CUDA quando solicitado e quando o runtime CUDA estiver disponivel.
   - Modelos de materiais, geometrias paramétricas e pós‑processamento (campo distante, Carta de Smith).
+  - Politicas de engine para malha/frames, diagnostico GPU/WSL e modelos de propagacao.
   - Ferramentas de visualização científica e uma GUI desktop opcional (PyQt).
 
-- **Interface web** (`antenna_web/`):
+- **Interface web** (`src/iloveantennas/web/`):
   - Backend FastAPI expondo criação de antena, simulação FDTD, análise e otimização.
   - Frontend em JavaScript com Three.js para visualização 3D da antena, padrão de radiação e campo EM animado.
 
@@ -21,25 +23,29 @@ Este README descreve:
 
 ## Estrutura do Projeto
 
-- `antenna_simulator/` — núcleo FDTD e ferramentas científicas.
+- `src/iloveantennas/simulator/` — núcleo FDTD e ferramentas científicas.
   - `core/` — constantes, materiais, grade FDTD e geometria de antenas.
+  - `engine/` — politicas de malha FDTD/FEM, limites numericos e captura de frames.
   - `solver/` — solver FDTD, fontes, monitores e conversão near‑to‑far.
+  - `propagation/` — FSPL, Okumura-Hata, COST-231, orcamento de enlace e tracado de raios 2D.
+  - `runtime/` — diagnostico de GPU Windows, WSL, Numba/CUDA e backends reais.
   - `visualization/` — visualização de geometria, campos, padrões e Carta de Smith (Matplotlib).
   - `utils/` — utilitários (conversões dB, FFT, exportação, estimativas de memória).
   - `gui/` — interface desktop (PyQt) para uso local.
   - `docs/` — documentação interna do núcleo (ver também DOCS_ILOVEANTENAS_SIMULATOR.md).
   - `main.py` — exemplos de uso em linha de comando.
 
-- `antenna_web/` — aplicação web para modelagem e estudo de antenas.
+- `src/iloveantennas/web/` — aplicação web para modelagem e estudo de antenas.
   - `app.py` — servidor FastAPI, endpoints REST e templates.
   - `config.py` — configurações de antena e simulação (dataclasses).
   - `antennas.py` — ponte entre `AntennaConfig` e `AntennaFactory`.
   - `analysis.py` — Carta de Smith, padrão de radiação, parâmetros derivados.
   - `simulation.py` — orquestra simulação FDTD em thread separada.
+  - Endpoints de propagacao e runtime expostos por `app.py`.
   - `optimizer.py` / `optimization.py` — otimização de comprimento (casamento de impedância).
   - `resources.py` — tipos de antena e materiais expostos à UI.
   - `state.py` — armazenamento em memória de simulações e otimizações.
-  - `static/` — CSS/JS (renderer Three.js, animação de campo, gráficos).
+  - `static/` — CSS/JS (design system, renderer Three.js, animação de campo, gráficos).
   - `templates/` — páginas HTML (`index.html`, `analise.html`).
   - `README.md` — detalhes específicos da aplicação web.
 
@@ -48,6 +54,9 @@ Este README descreve:
   - `DOCS_STRUCTURE.md` — visão geral da arquitetura e pastas.
   - `DOCS_ILOVEANTENAS_SIMULATOR.md` — detalhes do núcleo FDTD.
   - `DOCS_ILOVEANTENAS_WEB.md` — detalhes da aplicação web.
+  - `DOCS_DESIGN_SYSTEM.md` — paleta, tipografia, componentes e regras de manutenção visual.
+  - `DOCS_ENGINE.md` — engine, GPU/WSL, propagacao, ray tracing e tema de campo.
+  - `DOCS_ARCHITECTURE.md` — contratos consolidados, melhorias aplicadas e roadmap tecnico.
 
 ---
 
@@ -55,8 +64,8 @@ Este README descreve:
 
 1. **Definição da antena**
    - No **backend**:
-     - `antenna_web.config.AntennaConfig` descreve tipo e parâmetros (frequência, comprimento, raio, etc.).
-     - `antenna_web.antennas.create_antenna` converte `AntennaConfig` em um `AntennaGraph` via `AntennaFactory` em `antenna_simulator.core.geometry.factory`.
+     - `iloveantennas.web.config.AntennaConfig` descreve tipo e parâmetros (frequência, comprimento, raio, etc.).
+     - `iloveantennas.web.antennas.create_antenna` converte `AntennaConfig` em um `AntennaGraph` via `AntennaFactory` em `iloveantennas.simulator.core.geometry.factory`.
    - No **frontend**:
      - `static/js/app.js` controla o estado (tipo de antena, parâmetros) e envia `POST /api/antenna/create`.
      - O backend responde com geometria serializada, bounding box e ponto de alimentação.
@@ -69,7 +78,7 @@ Este README descreve:
      - Registra a simulação em `state.simulations`.
      - Inicia `run_fdtd_simulation` em uma thread.
    - `run_fdtd_simulation`:
-     - Cria grade FDTD (`FDTDGrid`) em `antenna_simulator.core`.
+     - Cria grade FDTD (`FDTDGrid`) em `iloveantennas.simulator.core`.
      - Configura fonte (`GaussianSource` ou `SineSource`).
      - Roda `FDTDSolver` (com ou sem Numba) pelo número de passos.
      - Grava cortes de campo `Ez` no plano XZ em intervalos regulares, normalizados por um máximo global.
@@ -91,7 +100,7 @@ Este README descreve:
      - `/api/smith-chart` → dados para Carta de Smith.
      - `/api/radiation-pattern` → padrão de radiação 2D/3D.
      - `/api/calculate` → parâmetros derivados (ganho, largura de feixe, área efetiva etc.).
-   - `analysis.py` faz a ponte com o núcleo `antenna_simulator`.
+   - `analysis.py` faz a ponte com o núcleo `iloveantennas.simulator`.
    - `static/js/charts.js` e `ChartManager` cuidam dos gráficos.
 
 5. **Otimização de comprimento**
@@ -119,15 +128,14 @@ pip install -r requirements.txt
 
 ---
 
-## Executando o Núcleo `antenna_simulator`
+## Executando o Núcleo `iloveantennas.simulator`
 
 ### Exemplos em linha de comando
 
-No diretório `antenna_simulator`:
+Na raiz do projeto:
 
 ```bash
-cd antenna_simulator
-python main.py
+python -m iloveantennas.simulator.main
 ```
 
 Use os argumentos ou menu interno (quando presente) para:
@@ -139,8 +147,7 @@ Use os argumentos ou menu interno (quando presente) para:
 Se as dependências de GUI estiverem instaladas:
 
 ```bash
-cd antenna_simulator
-python -m gui.main_window
+python -m iloveantennas.simulator.gui.main_window
 ```
 
 Isso abre uma janela gráfica onde é possível:
@@ -150,13 +157,12 @@ Isso abre uma janela gráfica onde é possível:
 
 ---
 
-## Executando a Interface Web `antenna_web`
+## Executando a Interface Web `iloveantennas.web`
 
-No diretório `antenna_web`:
+Na raiz do projeto:
 
 ```bash
-cd antenna_web
-python app.py
+python -m uvicorn iloveantennas.web.app:app --host 127.0.0.1 --port 5000 --reload
 ```
 
 Por padrão, o servidor sobe em:
@@ -171,23 +177,26 @@ Funcionalidades principais:
 - Otimização de comprimento da antena para casamento.
 
 Para mais detalhes específicos da aplicação web, veja:
-- `antenna_web/README.md`
-- `DOCS_ANTENNA_WEB.md`
+- `src/iloveantennas/web/README.md`
+- `DOCS_ILOVEANTENAS_WEB.md`
 
 ---
 
 ## Documentação Detalhada
 
 - **Arquitetura e estrutura de pastas**  
-  Consulte [DOCS_STRUCTURE.md](file:///c:/Users/thier/Desktop/workspace/DOCS_STRUCTURE.md) para uma visão consolidada dos diretórios e responsabilidades.
+  Consulte `DOCS_STRUCTURE.md` para uma visão consolidada dos diretórios e responsabilidades.
 
-- **Núcleo FDTD (`antenna_simulator/`)**  
-  Consulte [DOCS_ANTENNA_SIMULATOR.md](file:///c:/Users/thier/Desktop/workspace/DOCS_ANTENNA_SIMULATOR.md) para:
+- **Engine, runtime e propagacao**  
+  Consulte `DOCS_ENGINE.md` para politicas de malha, GPU/WSL, modelos de propagacao, tracado de raios e gradiente de campo.
+
+- **Núcleo FDTD (`src/iloveantennas/simulator/`)**  
+  Consulte `DOCS_ILOVEANTENAS_SIMULATOR.md` para:
   - Descrição de cada módulo (`core`, `solver`, `visualization`, `utils`, `gui`).
   - Lista das principais classes e funções, com responsabilidade de alto nível.
 
-- **Aplicação Web (`antenna_web/`)**  
-  Consulte [DOCS_ANTENNA_WEB.md](file:///c:/Users/thier/Desktop/workspace/DOCS_ANTENNA_WEB.md) para:
+- **Aplicação Web (`src/iloveantennas/web/`)**  
+  Consulte `DOCS_ILOVEANTENAS_WEB.md` para:
   - Descrição dos endpoints FastAPI e modelos Pydantic.
   - Fluxo da simulação e integração com o núcleo FDTD.
   - Papéis dos arquivos JS (app.js, renderer.js, charts.js) e CSS/HTML.
@@ -197,26 +206,25 @@ Para mais detalhes específicos da aplicação web, veja:
 ## Testes e Validação
 
 - Testes de geometria de antena:
-  - Em `antenna_web/test_antenna_geometry.py`, há testes unitários para validar a construção de cada tipo de antena exposta na interface web.
+  - Em `tests/`, há testes unitários e diagnósticos para validar a construção das geometrias expostas pela aplicação.
 - Verificação básica de sintaxe:
   - Pode ser feita em todo o projeto com:
 
 ```bash
-cd antenna_web
-python -m compileall ..
+python -m compileall src tests
 ```
 
-Para adicionar uma suíte de testes mais completa (por exemplo, via `pytest`), a estrutura atual (`test_antenna_geometry.py` e funções puras em `antenna_simulator`) já está preparada para isso.
+Para adicionar uma suíte de testes mais completa (por exemplo, via `pytest`), a estrutura atual em `tests/` e as funções puras em `iloveantennas.simulator` já estão preparadas para isso.
 
 ---
 
 ## Onde Começar
 
 - Para **estudo de antenas e campos EM** com visualização moderna:
-  - Siga para `antenna_web`, execute `python app.py` e use a interface no navegador.
+  - Execute `python -m uvicorn iloveantennas.web.app:app --host 127.0.0.1 --port 5000 --reload` e use a interface no navegador.
 
 - Para **desenvolvimento de novos modelos de antena ou algoritmos numéricos**:
-  - Explore `antenna_simulator/core/geometry/factory.py` para adicionar novas geometrias.
-  - Ajuste ou estenda o solver em `antenna_simulator/solver/fdtd.py` e `kernels.py`.
+  - Explore `src/iloveantennas/simulator/core/geometry/factory.py` para adicionar novas geometrias.
+  - Ajuste ou estenda o solver em `src/iloveantennas/simulator/solver/fdtd.py` e `kernels.py`.
   - Use `visualization/` para gerar gráficos e animações de alta qualidade para artigos ou relatórios.
 

@@ -2,11 +2,15 @@ import os
 import time
 
 import numpy as np
+from iloveantennas.simulator.engine import (
+    FDTD_GRID_POLICY,
+    FEM_GRID_POLICY,
+    frame_record_interval,
+    plan_grid_from_bbox,
+)
 from iloveantennas.web.antennas import create_antenna
 from iloveantennas.web.config import AntennaConfig, SimulationConfig
 from iloveantennas.web.state import simulation_lock, simulations
-
-from iloveantennas.simulator.core.constants import C0
 
 
 def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: SimulationConfig):
@@ -22,26 +26,22 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
 
         # Cria antena
         antenna = create_antenna(antenna_config)
-        wavelength = C0 / antenna_config.frequency
-
-        # Configura grade
-        dx = wavelength / sim_config.cells_per_wavelength
-
-        # Dimensões baseadas na antena
+        # Configura grade com politica numerica centralizada.
         bb = antenna.get_bounding_box()
-        margin = wavelength
-
-        nx = max(30, int((bb.size.x + 2 * margin) / dx))
-        ny = max(30, int((bb.size.y + 2 * margin) / dx))
-        nz = max(40, int((bb.size.z + 2 * margin) / dx))
-
-        # Limita tamanho para performance (Aumentado para suportar alta resolução e espaço real)
-        nx = min(nx, 400)
-        ny = min(ny, 400)
-        nz = min(nz, 500)
+        grid_plan = plan_grid_from_bbox(
+            bb,
+            antenna_config.frequency,
+            sim_config.cells_per_wavelength,
+            FDTD_GRID_POLICY,
+        )
 
         config = GridConfig(
-            dx=dx, nx=nx, ny=ny, nz=nz, pml_layers=sim_config.pml_layers, courant=sim_config.courant
+            dx=grid_plan.dx,
+            nx=grid_plan.nx,
+            ny=grid_plan.ny,
+            nz=grid_plan.nz,
+            pml_layers=sim_config.pml_layers,
+            courant=sim_config.courant,
         )
 
         grid = FDTDGrid(config)
@@ -49,9 +49,12 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
         grid.setup_pml()
         grid.calculate_coefficients()
 
-        # Inicializa Solver (Otimização Numba é automática se disponível e use_optimized=True)
-        # Passamos use_numba=sim_config.use_optimized para controlar explicitamente
-        solver = FDTDSolver(grid, use_numba=sim_config.use_optimized)
+        solver = FDTDSolver(
+            grid,
+            use_numba=sim_config.use_optimized,
+            backend=sim_config.solver_backend,
+            defer_host_sync=True,
+        )
 
         # Fonte
         center = (config.nx // 2, config.ny // 2, config.nz // 2)
@@ -77,7 +80,7 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
         global_max = 1e-9
 
         num_steps = sim_config.num_steps
-        record_interval = max(1, num_steps // 100)
+        record_interval = frame_record_interval(num_steps)
 
         # Listas para séries temporais
         times = []
@@ -91,6 +94,8 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
                 simulations[sim_id]["progress"] = progress
 
             if step % record_interval == 0:
+                solver.sync_fields_to_host(["Ez"])
+
                 # Plano E (XZ) - Corte Vertical
                 field_slice_E = grid.Ez[:, config.ny // 2, :].copy()
 
@@ -121,6 +126,9 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
                 times = t
                 values = v
 
+        solver.sync_fields_to_host()
+        solver._update_stats()
+
         # Normalização Global e Geração de Frames Finais
         frames = []
         for rf in raw_frames:
@@ -150,6 +158,12 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
             spectrum_freqs = []
             spectrum_vals = []
 
+        spectrum_max = float(np.max(spectrum_vals)) if len(spectrum_vals) > 0 else 0.0
+        if spectrum_max > 0:
+            spectrum_magnitudes = (np.array(spectrum_vals) / (spectrum_max + 1e-10)).tolist()
+        else:
+            spectrum_magnitudes = []
+
         # Resultados
         results = {
             "status": "completed",
@@ -161,6 +175,18 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
                 "dt": config.dt,
                 "maxE": float(solver.stats.get("max_E", 0)),
                 "maxH": float(solver.stats.get("max_H", 0)),
+                "plan": grid_plan.to_dict(),
+            },
+            "engine": {
+                "method": "fdtd",
+                "requested_backend": sim_config.solver_backend,
+                "solver_backend": solver.backend_name,
+                "backend_warning": solver.backend_warning,
+                "record_interval": record_interval,
+                "notes": [
+                    "GPU status is exposed separately by /api/engine/status.",
+                    "CUDA is used only when requested and successfully initialized.",
+                ],
             },
             "stats": {
                 "computation_time": solver.stats.get("computation_time", 0),
@@ -174,7 +200,7 @@ def run_fdtd_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: 
             },
             "spectrum": {
                 "frequencies": (np.array(spectrum_freqs) / 1e6).tolist(),
-                "magnitudes": (np.array(spectrum_vals) / (np.max(spectrum_vals) + 1e-10)).tolist(),
+                "magnitudes": spectrum_magnitudes,
             },
             "frames": frames,
             "field_shape": [config.nx, config.nz],
@@ -201,7 +227,6 @@ def run_fem_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: S
     """
     try:
         from iloveantennas.simulator.fem.mesh_generator import MeshGenerator
-        from iloveantennas.simulator.fem.solver import FEMSolver2D
         from iloveantennas.simulator.fem.solver_3d import FEMSolver3D
 
         with simulation_lock:
@@ -211,18 +236,17 @@ def run_fem_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: S
         # Cria antena (grafo)
         antenna = create_antenna(antenna_config)
 
-        wavelength = C0 / antenna_config.frequency
-        dx = wavelength / sim_config.cells_per_wavelength
         bb = antenna.get_bounding_box()
-        margin = wavelength
-
-        nx = max(30, int((bb.size.x + 2 * margin) / dx))
-        ny = max(30, int((bb.size.y + 2 * margin) / dx))
-        nz = max(40, int((bb.size.z + 2 * margin) / dx))
-
-        nx = min(nx, 100)
-        ny = min(ny, 100)
-        nz = min(nz, 100)
+        grid_plan = plan_grid_from_bbox(
+            bb,
+            antenna_config.frequency,
+            sim_config.cells_per_wavelength,
+            FEM_GRID_POLICY,
+        )
+        dx = grid_plan.dx
+        nx = grid_plan.nx
+        ny = grid_plan.ny
+        nz = grid_plan.nz
 
         use_fallback = False
         mag = None
@@ -318,6 +342,16 @@ def run_fem_simulation(sim_id: str, antenna_config: AntennaConfig, sim_config: S
                 "dt": 0,
                 "maxE": float(max_val),
                 "maxH": 0.0,
+                "plan": grid_plan.to_dict(),
+            },
+            "engine": {
+                "method": "fem",
+                "solver_backend": "gmsh/scipy-cpu" if not use_fallback else "synthetic-cpu",
+                "fallback": use_fallback,
+                "notes": [
+                    "FEM uses the Gmsh/scipy path when meshing succeeds.",
+                    "Fallback frames are synthetic and preserve the visualization flow.",
+                ],
             },
             "stats": {
                 "computation_time": 0,

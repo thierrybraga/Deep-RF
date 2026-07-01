@@ -7,13 +7,16 @@ Este módulo implementa:
 """
 
 import logging
+import os
 import time
 from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
 from iloveantennas.simulator.core.grid import FDTDGrid
+from iloveantennas.simulator.engine import normalize_fdtd_backend
 
+from .cuda_kernels import CudaFDTDBackend
 from .farfield import NearToFarField
 from .kernels import update_e_kernel, update_h_kernel
 from .monitors import FieldProbe, NearFieldBox
@@ -40,13 +43,21 @@ class FDTDSolver:
     - Condições de contorno
     """
 
-    def __init__(self, grid: FDTDGrid, use_numba: bool = True):
+    def __init__(
+        self,
+        grid: FDTDGrid,
+        use_numba: bool = True,
+        backend: str = "auto",
+        defer_host_sync: bool = False,
+    ):
         """
         Inicializa o solver.
 
         Args:
             grid: Grade FDTD configurada
-            use_numba: Se True, usa kernels otimizados (se disponíveis)
+            use_numba: Se True, usa kernels otimizados CPU quando CUDA nao for usado
+            backend: "auto", "cuda", "numba" ou "numpy"
+            defer_host_sync: Se True, backend CUDA sincroniza host apenas quando solicitado
         """
         self.grid = grid
         self.sources: List[Source] = []
@@ -56,12 +67,90 @@ class FDTDSolver:
         self.current_time = 0.0
         self.time_step = 0
         self.use_numba = use_numba
+        self._cpu_fallback_use_numba = bool(use_numba)
+        self.requested_backend = self._normalize_backend(backend)
+        self.defer_host_sync = bool(defer_host_sync)
+        self._cuda_backend: CudaFDTDBackend | None = None
+        self.backend_warning: str | None = None
+        self.backend_name = "numba-cpu" if use_numba else "numpy-cpu"
+        self._host_fields_current = True
+        self._configure_backend()
 
         # Estatísticas
-        self.stats = {"max_E": 0.0, "max_H": 0.0, "total_energy": [], "computation_time": 0.0}
+        self.stats = {
+            "max_E": 0.0,
+            "max_H": 0.0,
+            "total_energy": [],
+            "computation_time": 0.0,
+            "backend": self.backend_name,
+        }
 
         # Callback para progresso
         self._progress_callback: Optional[Callable[[int, int, float], None]] = None
+
+    @staticmethod
+    def _normalize_backend(backend: str | None) -> str:
+        return normalize_fdtd_backend(backend)
+
+    def _configure_backend(self):
+        env_backend = os.getenv("ILOVEANTENNAS_FDTD_BACKEND", "").strip()
+        requested = self._normalize_backend(env_backend) if env_backend else self.requested_backend
+
+        if requested == "auto":
+            requested = "numba" if self.use_numba else "numpy"
+
+        if requested == "numpy":
+            self.use_numba = False
+            self.backend_name = "numpy-cpu"
+            return
+
+        if requested == "numba":
+            self.use_numba = bool(self.use_numba)
+            self.backend_name = "numba-cpu" if self.use_numba else "numpy-cpu"
+            return
+
+        if requested == "cuda":
+            try:
+                self._cuda_backend = CudaFDTDBackend(self.grid)
+                self.backend_name = "cuda"
+                self._host_fields_current = True
+                return
+            except Exception as exc:
+                self.backend_warning = f"CUDA backend unavailable, using CPU fallback: {exc}"
+                logger.warning(self.backend_warning)
+                self._cuda_backend = None
+                self.backend_name = "numba-cpu" if self._cpu_fallback_use_numba else "numpy-cpu"
+                return
+
+        self.backend_warning = f"Unknown backend '{requested}', using CPU fallback."
+        logger.warning(self.backend_warning)
+        self.backend_name = "numba-cpu" if self._cpu_fallback_use_numba else "numpy-cpu"
+
+    def _fallback_from_cuda(self, exc: Exception):
+        self.backend_warning = f"CUDA backend failed during execution, using CPU fallback: {exc}"
+        logger.warning(self.backend_warning)
+        if self._cuda_backend is not None:
+            try:
+                self._cuda_backend.sync_to_host()
+            except Exception as sync_exc:
+                logger.warning("Could not sync CUDA fields before fallback: %s", sync_exc)
+        self._cuda_backend = None
+        self.backend_name = "numba-cpu" if self._cpu_fallback_use_numba else "numpy-cpu"
+        self._host_fields_current = True
+        self.stats["backend"] = self.backend_name
+        self.stats["backend_warning"] = self.backend_warning
+
+    @property
+    def is_cuda_enabled(self) -> bool:
+        return self._cuda_backend is not None
+
+    def sync_fields_to_host(self, components: list[str] | tuple[str, ...] | None = None):
+        """Synchronize CUDA device fields back to the CPU grid arrays."""
+        if self._cuda_backend is None:
+            return
+        self._cuda_backend.sync_to_host(components)
+        if components is None:
+            self._host_fields_current = True
 
     def add_source(self, source: Source):
         """Adiciona fonte de excitação"""
@@ -92,6 +181,14 @@ class FDTDSolver:
 
     def _update_H(self):
         """Atualiza campos magnéticos H"""
+        if self._cuda_backend is not None:
+            try:
+                self._cuda_backend.update_h()
+                self._host_fields_current = False
+                return
+            except Exception as exc:
+                self._fallback_from_cuda(exc)
+
         if self.use_numba:
             update_h_kernel(
                 self.grid.Hx,
@@ -133,6 +230,14 @@ class FDTDSolver:
 
     def _update_E(self):
         """Atualiza campos elétricos E"""
+        if self._cuda_backend is not None:
+            try:
+                self._cuda_backend.update_e()
+                self._host_fields_current = False
+                return
+            except Exception as exc:
+                self._fallback_from_cuda(exc)
+
         if self.use_numba:
             update_e_kernel(
                 self.grid.Ex,
@@ -188,6 +293,14 @@ class FDTDSolver:
                 val = source.get_value(self.current_time)
                 i, j, k = source.position
 
+                if self._cuda_backend is not None:
+                    try:
+                        self._cuda_backend.add_source(source.component, i, j, k, val)
+                        self._host_fields_current = False
+                        continue
+                    except Exception as exc:
+                        self._fallback_from_cuda(exc)
+
                 # Soft source (adiciona ao campo)
                 field_array = getattr(self.grid, source.component)
 
@@ -203,6 +316,14 @@ class FDTDSolver:
         """Registra valores nos probes"""
         for probe in self.probes:
             i, j, k = probe.position
+
+            if self._cuda_backend is not None:
+                try:
+                    probe.record(self.current_time, self._cuda_backend.read_point(probe.component, i, j, k))
+                    continue
+                except Exception as exc:
+                    self._fallback_from_cuda(exc)
+
             field_array = getattr(self.grid, probe.component)
             # Verifica limites
             if (
@@ -218,6 +339,8 @@ class FDTDSolver:
         if self.nf_box is None:
             return
 
+        self.sync_fields_to_host()
+
         self.nf_box.times.append(self.current_time)
 
         # Extrai campos tangenciais em cada face
@@ -232,6 +355,7 @@ class FDTDSolver:
 
     def _update_stats(self):
         """Atualiza estatísticas"""
+        self.sync_fields_to_host()
         self.stats["max_E"] = max(
             self.stats["max_E"],
             np.max(np.abs(self.grid.Ex)),
@@ -267,6 +391,9 @@ class FDTDSolver:
         self._record_probes()
         self._record_near_field()
 
+        if self._cuda_backend is not None and not self.defer_host_sync:
+            self.sync_fields_to_host()
+
     def run(self, num_steps: int = None, total_time: float = None, record_interval: int = 10):
         """
         Executa simulação FDTD.
@@ -296,17 +423,32 @@ class FDTDSolver:
                 self._progress_callback(step, num_steps, elapsed)
 
         self.stats["computation_time"] = time.time() - start_time
+        self.sync_fields_to_host()
+        self.stats["backend"] = self.backend_name
+        if self.backend_warning:
+            self.stats["backend_warning"] = self.backend_warning
 
     def reset(self):
         """Reseta o solver para estado inicial"""
         self.grid.reset_fields()
+        if self._cuda_backend is not None:
+            self._cuda_backend.sync_from_host(["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"])
+            self._host_fields_current = True
         self.current_time = 0.0
         self.time_step = 0
 
         for probe in self.probes:
             probe.clear()
 
-        self.stats = {"max_E": 0.0, "max_H": 0.0, "total_energy": [], "computation_time": 0.0}
+        self.stats = {
+            "max_E": 0.0,
+            "max_H": 0.0,
+            "total_energy": [],
+            "computation_time": 0.0,
+            "backend": self.backend_name,
+        }
+        if self.backend_warning:
+            self.stats["backend_warning"] = self.backend_warning
 
     def calculate_far_field(
         self,

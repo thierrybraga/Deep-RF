@@ -1,17 +1,28 @@
+from iloveantennas.simulator.core.materials import MaterialLibrary
+
+
+def _conductor(name: str) -> dict:
+    material = getattr(MaterialLibrary, name)
+    return {
+        "name": name,
+        "sigma": material.api_sigma,
+        "color": material.color_hex,
+    }
+
+
+def _dielectric(name: str) -> dict:
+    material = getattr(MaterialLibrary, name)
+    return {
+        "name": name,
+        "epsilon_r": material.epsilon_r,
+        "tan_delta": material.tan_delta,
+        "color": material.color_hex,
+    }
+
+
 MATERIALS = {
-    "conductors": [
-        {"name": "COPPER", "sigma": 5.96e7, "color": "#b87333"},
-        {"name": "ALUMINUM", "sigma": 3.77e7, "color": "#848789"},
-        {"name": "GOLD", "sigma": 4.1e7, "color": "#ffd700"},
-        {"name": "SILVER", "sigma": 6.3e7, "color": "#c0c0c0"},
-        {"name": "PEC", "sigma": 1e30, "color": "#333333"},
-    ],
-    "dielectrics": [
-        {"name": "FR4", "epsilon_r": 4.4, "tan_delta": 0.02, "color": "#2e8b2e"},
-        {"name": "ROGERS_4003C", "epsilon_r": 3.55, "tan_delta": 0.0027, "color": "#8b4513"},
-        {"name": "TEFLON", "epsilon_r": 2.1, "tan_delta": 0.0002, "color": "#f5f5f5"},
-        {"name": "AIR", "epsilon_r": 1.0, "tan_delta": 0, "color": "#87ceeb"},
-    ],
+    "conductors": [_conductor(name) for name in ("COPPER", "ALUMINUM", "GOLD", "SILVER", "PEC")],
+    "dielectrics": [_dielectric(name) for name in ("FR4", "ROGERS_4003C", "TEFLON", "AIR")],
 }
 
 ANTENNA_TYPES = [

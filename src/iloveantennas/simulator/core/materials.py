@@ -45,6 +45,7 @@ class Material:
     mu_r: float = 1.0
     sigma: float = 0.0
     sigma_m: float = 0.0
+    tan_delta: float = 0.0
     material_type: MaterialType = MaterialType.DIELECTRIC
     color: tuple = (0.5, 0.5, 0.5, 1.0)
 
@@ -63,6 +64,15 @@ class Material:
     @property
     def velocity(self) -> float:
         return C0 / np.sqrt(self.epsilon_r * self.mu_r)
+
+    @property
+    def color_hex(self) -> str:
+        rgb = tuple(max(0, min(255, round(float(channel) * 255))) for channel in self.color[:3])
+        return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+    @property
+    def api_sigma(self) -> float:
+        return float(self.sigma) if np.isfinite(self.sigma) else 1e30
 
     @property
     def wavelength(self) -> Callable[[float], float]:
@@ -209,6 +219,7 @@ class MaterialLibrary:
         epsilon_r=4.4,
         mu_r=1.0,
         sigma=0.0,
+        tan_delta=0.02,
         material_type=MaterialType.LOSSY_DIELECTRIC,
         color=(0.0, 0.5, 0.0, 0.8),
     )
@@ -218,6 +229,7 @@ class MaterialLibrary:
         epsilon_r=3.55,
         mu_r=1.0,
         sigma=0.0,
+        tan_delta=0.0027,
         material_type=MaterialType.DIELECTRIC,
         color=(0.9, 0.85, 0.7, 0.9),
     )
@@ -227,6 +239,7 @@ class MaterialLibrary:
         epsilon_r=2.1,
         mu_r=1.0,
         sigma=0.0,
+        tan_delta=0.0002,
         material_type=MaterialType.DIELECTRIC,
         color=(0.95, 0.95, 0.95, 0.8),
     )

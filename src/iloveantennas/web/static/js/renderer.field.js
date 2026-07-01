@@ -37,7 +37,23 @@ AntennaRenderer.prototype.setupFieldVisualization = function(gridInfo, scale = 1
         : 1.0;
         
     const displacementScale = dx * scale * fieldScale * 2.0;
-    const contourLevels = this.fieldContourLevels || 12.0;
+    const theme = window.ENGINE_THEME || {};
+    const animationConfig = theme.animation || {};
+    const defaultShaderStops = [
+        'vec3(0.043, 0.063, 0.149)',
+        'vec3(0.220, 0.741, 0.973)',
+        'vec3(0.133, 0.773, 0.369)',
+        'vec3(0.961, 0.620, 0.043)',
+        'vec3(0.937, 0.267, 0.267)'
+    ];
+    const shaderVec3 = (index) => theme.shaderVec3 ? theme.shaderVec3(index) : defaultShaderStops[index];
+    const contourLevels = this.fieldContourLevels || animationConfig.contourLevels || 12.0;
+    const contourLineWidth = animationConfig.contourLineWidth || 0.03;
+    const fieldGridScale = animationConfig.fieldGridScale || 40.0;
+    const pulseFrequency = animationConfig.pulseFrequency || 3.0;
+    const alphaLow = animationConfig.alphaLow || 0.03;
+    const alphaHigh = animationConfig.alphaHigh || 0.15;
+    const lowFieldFadeHigh = animationConfig.lowFieldFadeHigh || 0.20;
     
     const vertexShader = `
         uniform sampler2D uDataTexture;
@@ -61,11 +77,11 @@ AntennaRenderer.prototype.setupFieldVisualization = function(gridInfo, scale = 1
 
         vec3 colormap(float t) {
             t = clamp(t, 0.0, 1.0);
-            vec3 c1 = vec3(0.02, 0.02, 0.25);
-            vec3 c2 = vec3(0.0, 0.7, 1.0);
-            vec3 c3 = vec3(0.0, 1.0, 0.2);
-            vec3 c4 = vec3(1.0, 1.0, 0.0);
-            vec3 c5 = vec3(1.0, 0.0, 0.0);
+            vec3 c1 = ${shaderVec3(0)};
+            vec3 c2 = ${shaderVec3(1)};
+            vec3 c3 = ${shaderVec3(2)};
+            vec3 c4 = ${shaderVec3(3)};
+            vec3 c5 = ${shaderVec3(4)};
             if (t < 0.25) {
                 float u = t / 0.25;
                 return mix(c1, c2, u);
@@ -90,10 +106,10 @@ AntennaRenderer.prototype.setupFieldVisualization = function(gridInfo, scale = 1
             
             float levels = max(2.0, uContourLevels);
             float f = fract(norm * levels);
-            float lineWidth = 0.03;
+            float lineWidth = ${contourLineWidth.toFixed(3)};
             float line = 1.0 - smoothstep(0.5 - lineWidth, 0.5 + lineWidth, abs(f - 0.5));
             
-            float gridScale = 40.0;
+            float gridScale = ${Number(fieldGridScale).toFixed(1)};
             float gridX = abs(fract(vUv.x * gridScale) - 0.5);
             float gridY = abs(fract(vUv.y * gridScale) - 0.5);
             float grid = 1.0 - smoothstep(0.45, 0.5, min(gridX, gridY));
@@ -104,15 +120,15 @@ AntennaRenderer.prototype.setupFieldVisualization = function(gridInfo, scale = 1
             baseColor = mix(baseColor, contourColor, line * 0.7);
             
             float glow = 0.5 + 1.2 * pow(norm, 0.75);
-            float pulse = 0.9 + 0.1 * sin(uTime * 3.0 + val * 10.0);
+            float pulse = 0.9 + 0.1 * sin(uTime * ${pulseFrequency.toFixed(3)} + val * 10.0);
             
             vec3 color = baseColor * glow * pulse;
             
-            color = mix(color, vec3(0.02, 0.02, 0.05), 0.7 * (1.0 - smoothstep(0.0, 0.2, norm)));
+            color = mix(color, vec3(0.02, 0.02, 0.05), 0.7 * (1.0 - smoothstep(0.0, ${lowFieldFadeHigh.toFixed(3)}, norm)));
             
             color += vec3(0.3, 0.5, 1.0) * grid * 0.05 * smoothstep(0.1, 0.5, norm);
             
-            float alpha = smoothstep(0.03, 0.15, norm) * uOpacity;
+            float alpha = smoothstep(${alphaLow.toFixed(3)}, ${alphaHigh.toFixed(3)}, norm) * uOpacity;
             alpha *= 0.9 + 0.1 * sin(uTime + vUv.x * 5.0);
             
             if (alpha < 0.01) discard;
